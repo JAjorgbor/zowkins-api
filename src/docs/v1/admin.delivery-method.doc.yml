@@ -1,0 +1,183 @@
+components:
+  schemas:
+    DeliveryMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        fee:
+          type: number
+        estimatedDeliveryTime:
+          type: string
+        isActive:
+          type: boolean
+        visibility:
+          type: boolean
+      example:
+        id: 5f059637c22998634860126b
+        name: Express Shipping
+        fee: 2500
+        estimatedDeliveryTime: "2-3 business days"
+        isActive: true
+        visibility: true
+
+tags:
+  - name: Admin DeliveryMethod
+    description: Delivery method management for admins
+
+paths:
+  /admin/delivery-methods:
+    post:
+      summary: Create a delivery method
+      tags: [Admin DeliveryMethod]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - fee
+                - estimatedDeliveryTime
+              properties:
+                name:
+                  type: string
+                fee:
+                  type: number
+                estimatedDeliveryTime:
+                  type: string
+                isActive:
+                  type: boolean
+                visibility:
+                  type: boolean
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryMethod"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    get:
+      summary: Get all delivery methods (Admin)
+      tags: [Admin DeliveryMethod]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+          description: Delivery method name
+        - in: query
+          name: isActive
+          schema:
+            type: string
+          description: Filter by activity status
+        - in: query
+          name: visibility
+          schema:
+            type: string
+          description: Filter by visibility status
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeliveryMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/delivery-methods/{deliveryMethodId}:
+    get:
+      summary: Get a delivery method
+      tags: [Admin DeliveryMethod]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: deliveryMethodId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      summary: Update a delivery method
+      tags: [Admin DeliveryMethod]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: deliveryMethodId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                fee:
+                  type: number
+                estimatedDeliveryTime:
+                  type: string
+                isActive:
+                  type: boolean
+                visibility:
+                  type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete a delivery method
+      tags: [Admin DeliveryMethod]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: deliveryMethodId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"

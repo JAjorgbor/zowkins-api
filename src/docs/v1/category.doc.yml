@@ -1,0 +1,271 @@
+openapi: 3.0.3
+info:
+  title: Category API
+  version: "1.0.0"
+tags:
+  - name: Categories
+    description: Public category operations
+paths:
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Retrieve all visible categories with pagination
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        "200":
+          description: List of categories and pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /categories/{slug}:
+    get:
+      tags:
+        - Categories
+      summary: Get visible category by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The category slug
+      responses:
+        "200":
+          description: Category found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /categories/{slug}/products:
+    get:
+      tags:
+        - Categories
+      summary: Get visible products for a specific category with pagination and filters
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The category slug
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - name: minPrice
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Minimum price filter
+        - name: maxPrice
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Maximum price filter
+        - name: subcategories
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: List of subcategory slugs to filter by
+      responses:
+        "200":
+          description: List of products and pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+                  maxPrice:
+                    type: number
+                    description: The maximum price found among products in this category
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        slug:
+          type: string
+        image:
+          type: object
+          properties:
+            url:
+              type: string
+            key:
+              type: string
+        visible:
+          type: boolean
+        subcategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subcategory"
+        productsCount:
+          type: integer
+          description: Virtual field showing count of products in this category
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Subcategory:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        category:
+          type: string
+          description: Category ID
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        price:
+          type: number
+        description:
+          type: string
+        image:
+          type: object
+          properties:
+            url:
+              type: string
+            key:
+              type: string
+        visible:
+          type: boolean
+        inStock:
+          type: boolean
+        category:
+          type: string
+          description: Category ID
+        subcategory:
+          type: string
+          description: Subcategory ID
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+          example: 100
+        itemCount:
+          type: integer
+          example: 10
+        itemsPerPage:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 10
+        currentPage:
+          type: integer
+          example: 1
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

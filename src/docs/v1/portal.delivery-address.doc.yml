@@ -1,0 +1,220 @@
+components:
+  schemas:
+    DeliveryAddress:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The address ID
+        label:
+          type: string
+          description: Label for the address (e.g. Home, Work)
+        phoneNumber:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+          default: Nigeria
+        postalCode:
+          type: string
+      example:
+        id: 5f059637c22998634860126b
+        label: Home
+        phoneNumber: "08012345678"
+        street: 123 Main St
+        city: Lagos
+        state: Lagos
+        country: Nigeria
+        postalCode: "100234"
+
+tags:
+  - name: Portal DeliveryAddress
+    description: Delivery address management for users
+
+paths:
+  /portal/delivery-address/{userId}:
+    post:
+      summary: Create a delivery address for a user
+      tags: [Portal DeliveryAddress]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - label
+                - phoneNumber
+                - street
+                - city
+                - state
+              properties:
+                label:
+                  type: string
+                phoneNumber:
+                  type: string
+                street:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                country:
+                  type: string
+                  default: Nigeria
+                postalCode:
+                  type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryAddress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    get:
+      summary: Get all delivery addresses for a user
+      tags: [Portal DeliveryAddress]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeliveryAddress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /portal/delivery-address/{userId}/{addressId}:
+    get:
+      summary: Get a specific delivery address
+      tags: [Portal DeliveryAddress]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+        - in: path
+          name: addressId
+          required: true
+          schema:
+            type: string
+          description: Address ID
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryAddress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      summary: Update a delivery address
+      tags: [Portal DeliveryAddress]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+        - in: path
+          name: addressId
+          required: true
+          schema:
+            type: string
+          description: Address ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                phoneNumber:
+                  type: string
+                street:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                country:
+                  type: string
+                postalCode:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryAddress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete a delivery address
+      tags: [Portal DeliveryAddress]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+        - in: path
+          name: addressId
+          required: true
+          schema:
+            type: string
+          description: Address ID
+      responses:
+        "204":
+          description: No Content
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"

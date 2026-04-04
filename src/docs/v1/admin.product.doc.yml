@@ -1,0 +1,271 @@
+openapi: 3.0.3
+info:
+  title: Admin Product API
+  version: "1.0.0"
+tags:
+  - name: Admin Product
+    description: Operations related to products using admin access
+paths:
+  /admin/products:
+    post:
+      tags:
+        - Admin Product
+      summary: Create a new product
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - data
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Product image
+                data:
+                  $ref: "#/components/schemas/CreateProductDto"
+            encoding:
+              data:
+                contentType: application/json
+      responses:
+        "201":
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    get:
+      tags:
+        - Admin Product
+      summary: Retrieve all products
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /admin/products/stats:
+    get:
+      tags:
+        - Admin Product
+      summary: Get general product statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      visible:
+                        type: integer
+                      invisible:
+                        type: integer
+                      instock:
+                        type: integer
+                      outofstock:
+                        type: integer
+                      totalInventoryUnitCost:
+                        type: number
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/products/{id}:
+    get:
+      tags:
+        - Admin Product
+      summary: Get product by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags:
+        - Admin Product
+      summary: Update a product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Updated product image
+                data:
+                  $ref: "#/components/schemas/UpdateProductDto"
+            encoding:
+              data:
+                contentType: application/json
+      responses:
+        "200":
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Admin Product
+      summary: Delete a product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Product deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Bad Request
+    Unauthorized:
+      description: Unauthorized
+    NotFound:
+      description: Not Found
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        category:
+          type: string
+          description: Category ID
+        subcategory:
+          type: string
+          description: Subcategory ID
+        image:
+          type: object
+          properties:
+            url:
+              type: string
+            key:
+              type: string
+        price:
+          type: number
+        description:
+          type: string
+        visible:
+          type: boolean
+        inStock:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateProductDto:
+      type: object
+      required:
+        - name
+        - category
+        - subcategory
+        - price
+        - description
+        - visible
+        - inStock
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          description: Category ID
+        subcategory:
+          type: string
+          description: Subcategory ID
+        price:
+          type: number
+        description:
+          type: string
+        visible:
+          type: boolean
+          default: true
+        inStock:
+          type: boolean
+          default: true
+    UpdateProductDto:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        subcategory:
+          type: string
+        price:
+          type: number
+        description:
+          type: string
+        visible:
+          type: boolean
+        inStock:
+          type: boolean

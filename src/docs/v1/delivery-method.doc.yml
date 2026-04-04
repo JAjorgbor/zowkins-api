@@ -1,0 +1,43 @@
+components:
+  schemas:
+    DeliveryMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        fee:
+          type: number
+        estimatedDeliveryTime:
+          type: string
+        isActive:
+          type: boolean
+        visibility:
+          type: boolean
+      example:
+        id: 5f059637c22998634860126b
+        name: Express Shipping
+        fee: 2500
+        estimatedDeliveryTime: "2-3 business days"
+        isActive: true
+        visibility: true
+
+tags:
+  - name: DeliveryMethod
+    description: Delivery method information for users
+
+paths:
+  /delivery-methods:
+    get:
+      summary: Get all available delivery methods
+      tags: [DeliveryMethod]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeliveryMethod"

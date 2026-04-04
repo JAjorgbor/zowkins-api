@@ -1,0 +1,335 @@
+openapi: 3.0.3
+info:
+  title: Admin Order API
+  version: "1.0.0"
+
+tags:
+  - name: Admin Order
+    description: Order management for administrators
+
+paths:
+  /admin/orders:
+    post:
+      summary: Create a new order
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer, items, deliveryAddress, deliveryMethod]
+              properties:
+                customer:
+                  type: string
+                  description: Customer ID
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [productId, quantity]
+                    properties:
+                      productId:
+                        type: string
+                      quantity:
+                        type: integer
+                        minimum: 1
+                deliveryAddress:
+                  type: string
+                  description: Delivery Address ID
+                deliveryMethod:
+                  type: string
+                  description: Delivery Method ID
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  order:
+                    $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/Unauthorized"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    get:
+      summary: Get all orders
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: orderStatus
+          schema:
+            type: string
+            enum: [processing, in-transit, cancelled, delivered]
+        - in: query
+          name: paymentStatus
+          schema:
+            type: string
+            enum: [pending, paid, failed, abandoned, reversed]
+        - in: query
+          name: customer
+          schema:
+            type: string
+          description: Customer ID
+        - in: query
+          name: referralPartner
+          schema:
+            type: string
+          description: Referral Partner ID
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+          description: "sort by query in the form of field:desc/asc (ex. name:asc)"
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  orders:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/orders/stats:
+    get:
+      summary: Get general order statistics
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  stats:
+                    type: object
+                    properties:
+                      totalOrders:
+                        type: integer
+                      processing:
+                        type: integer
+                      delivered:
+                        type: integer
+                      cancelled:
+                        type: integer
+                      inTransit:
+                        type: integer
+                      totalRevenue:
+                        type: number
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/orders/{orderId}:
+    get:
+      summary: Get a specific order
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  order:
+                    $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      summary: Update order status
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderStatus:
+                  type: string
+                  enum: [processing, in-transit, cancelled, delivered]
+                paymentStatus:
+                  type: string
+                  enum: [pending, paid, failed, abandoned, reversed]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  order:
+                    $ref: "#/components/schemas/Order"
+
+  /admin/orders/{orderId}/products:
+    patch:
+      summary: Update order products
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [products]
+              properties:
+                products:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productId:
+                        type: string
+                      quantity:
+                        type: number
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  order:
+                    $ref: "#/components/schemas/Order"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: Unauthorized
+    Forbidden:
+      description: Forbidden
+    NotFound:
+      description: Not Found
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        orderNumber:
+          type: string
+        customer:
+          type: object
+          properties:
+            id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            phoneNumber:
+              type: string
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+              productName:
+                type: string
+              quantity:
+                type: number
+              price:
+                type: number
+              amount:
+                type: number
+        transaction:
+          type: object
+          properties:
+            subTotal:
+              type: number
+            deliveryFee:
+              type: number
+            totalAmount:
+              type: number
+        orderStatus:
+          type: string
+          enum: [processing, in-transit, cancelled, delivered]
+        paymentStatus:
+          type: string
+          enum: [pending, paid, failed, abandoned, reversed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

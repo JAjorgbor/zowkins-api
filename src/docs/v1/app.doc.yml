@@ -1,0 +1,289 @@
+openapi: 3.0.3
+info:
+  title: App API
+  version: "1.0.0"
+tags:
+  - name: App
+    description: Operations related to application settings and metadata
+paths:
+  /app:
+    get:
+      tags:
+        - App
+      summary: Get application settings
+      description: Returns the single application settings object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/App"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags:
+        - App
+      summary: Create application settings
+      description: Creates the application settings. Only allows creation if none exist.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppInput"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/App"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    patch:
+      tags:
+        - App
+      summary: Update application settings
+      description: Updates the application settings.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/App"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /app/contact:
+    patch:
+      tags:
+        - App
+      summary: Update application contact information
+      description: Specific endpoint to update only contact-related fields.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppContactUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/App"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  schemas:
+    AppInput:
+      type: object
+      required:
+        - name
+        - address
+        - phoneNumber
+        - whatsAppNumber
+        - email
+        - status
+        - description
+        - ratings
+        - images
+        - branding
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phoneNumber:
+          type: string
+        whatsAppNumber:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: object
+          properties:
+            portal:
+              type: string
+              enum: [online, offline, waitlist]
+        description:
+          type: string
+        ratings:
+          type: number
+        images:
+          type: array
+          items:
+            type: string
+        branding:
+          type: object
+          properties:
+            logo:
+              type: string
+            logoLight:
+              type: string
+            logomark:
+              type: string
+            logomarkLight:
+              type: string
+      example:
+        name: PharmaHub Medica
+        address: 123 Health Way, Lagos, Nigeria
+        phoneNumber: "+2348000000000"
+        whatsAppNumber: "+2348000000000"
+        email: hello@pharmahubmedica.com
+        status:
+          portal: online
+        description: Premium pharmaceutical delivery service.
+        ratings: 5
+        images: ["https://example.com/image1.jpg"]
+        branding:
+          logo: "https://example.com/logo.png"
+          logoLight: "https://example.com/logo-light.png"
+          logomark: "https://example.com/logomark.png"
+          logomarkLight: "https://example.com/logomark-light.png"
+
+    AppUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phoneNumber:
+          type: string
+        whatsAppNumber:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: object
+          properties:
+            portal:
+              type: string
+              enum: [online, offline, waitlist]
+        description:
+          type: string
+        ratings:
+          type: number
+        images:
+          type: array
+          items:
+            type: string
+        branding:
+          type: object
+          properties:
+            logo:
+              type: string
+            logoLight:
+              type: string
+            logomark:
+              type: string
+            logomarkLight:
+              type: string
+
+    AppContactUpdate:
+      type: object
+      properties:
+        address:
+          type: string
+        phoneNumber:
+          type: string
+        whatsAppNumber:
+          type: string
+        email:
+          type: string
+          format: email
+
+    App:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: string
+            slug:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+        - $ref: "#/components/schemas/AppInput"
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

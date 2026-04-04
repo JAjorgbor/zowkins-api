@@ -1,0 +1,129 @@
+paths:
+  /portal/banks:
+    get:
+      summary: Get all banks
+      description: Retrieve a list of all available banks.
+      tags:
+        - Portal Bank
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: A list of banks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  banks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bank"
+        "500":
+          description: Internal Server Error
+
+  /portal/banks/validate-account:
+    get:
+      summary: Validate bank account
+      description: Validate bank account details using Paystack API.
+      tags:
+        - Portal Bank
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: accountNumber
+          schema:
+            type: string
+          required: true
+          description: The bank account number.
+        - in: query
+          name: bankCode
+          schema:
+            type: string
+          required: true
+          description: The bank code.
+      responses:
+        "200":
+          description: Bank account details validated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bankAccount:
+                    type: object
+                    properties:
+                      status:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: "Account number resolved"
+                      data:
+                        type: object
+                        properties:
+                          account_number:
+                            type: string
+                            example: "9035784325"
+                          account_name:
+                            type: string
+                            example: "TEST ACCOUNT 9035784325"
+                          bank_id:
+                            type: integer
+                            example: 24
+        "400":
+          description: Invalid request parameters.
+        "500":
+          description: Internal Server Error
+
+components:
+  schemas:
+    Bank:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Access Bank"
+        slug:
+          type: string
+          example: "access-bank"
+        code:
+          type: string
+          example: "044"
+        longcode:
+          type: string
+          example: "044150149"
+        gateway:
+          type: string
+          nullable: true
+          example: "emandate"
+        pay_with_bank:
+          type: boolean
+          example: false
+        active:
+          type: boolean
+          example: true
+        is_deleted:
+          type: boolean
+          example: false
+        country:
+          type: string
+          example: "Nigeria"
+        currency:
+          type: string
+          example: "NGN"
+        type:
+          type: string
+          example: "nuban"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00.000Z"

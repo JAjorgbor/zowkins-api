@@ -1,0 +1,309 @@
+openapi: 3.0.0
+info:
+  title: Admin Auth API
+  version: 1.0.0
+tags:
+  - name: Admin Auth
+    description: Admin authentication and account management
+
+paths:
+  /admin/auth/create-account:
+    post:
+      tags:
+        - Admin Auth
+      summary: Create a new admin account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAdminAccountInput"
+      responses:
+        "201":
+          description: Created
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=abc123...; HttpOnly; Secure; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/auth/login:
+    post:
+      tags:
+        - Admin Auth
+      summary: Login with admin credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "201":
+          description: Logged in successfully
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/auth/refresh-tokens:
+    post:
+      tags:
+        - Admin Auth
+      summary: Refresh authentication tokens
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/auth/logout:
+    post:
+      tags:
+        - Admin Auth
+      summary: Logout of admin account
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/auth/reset-password:
+    post:
+      tags:
+        - Admin Auth
+      summary: Send password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /admin/auth/set-new-password/{token}:
+    post:
+      tags:
+        - Admin Auth
+      summary: Set a new password
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        "200":
+          description: Password reset successful
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateAdminAccountInput:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - status
+        - role
+        - gender
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        status:
+          type: string
+          enum: [active, inactive]
+        role:
+          type: string
+          enum:
+            [
+              devOps,
+              administrator,
+              operations,
+              storeManager,
+              marketingAndSales,
+              accountant,
+              driver,
+            ]
+        gender:
+          type: string
+          enum: [Male, Female]
+        phoneNumber:
+          type: string
+      example:
+        firstName: Admin
+        lastName: User
+        email: admin@example.com
+        password: password123
+        status: active
+        role: administrator
+        gender: Male
+
+    LoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      example:
+        email: admin@example.com
+        password: password123
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AdminUser"
+        accessToken:
+          type: string
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+        role:
+          type: string
+        gender:
+          type: string
+        phoneNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

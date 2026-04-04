@@ -1,0 +1,314 @@
+openapi: 3.0.0
+info:
+  title: Admin Team API
+  version: 1.0.0
+tags:
+  - name: Admin Team
+    description: Admin team management and invitations
+
+paths:
+  /admin/team:
+    get:
+      tags:
+        - Admin Team
+      summary: Get all admin team members
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of admin team members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/team/invite-member:
+    post:
+      tags:
+        - Admin Team
+      summary: Invite a new team member
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteTeamMemberInput"
+      responses:
+        "204":
+          description: Invite sent successfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/team/accept-invite/{token}:
+    post:
+      tags:
+        - Admin Team
+      summary: Accept a team invitation
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: The invitation token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/team/resend-invite/{id}:
+    post:
+      tags:
+        - Admin Team
+      summary: Resend a team invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The admin user ID
+      responses:
+        "204":
+          description: Invite resent successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/team/{id}:
+    patch:
+      tags:
+        - Admin Team
+      summary: Update an admin team member
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The admin user ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAdminUserInput"
+      responses:
+        "200":
+          description: Updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Admin Team
+      summary: Remove an admin team member
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The admin user ID
+      responses:
+        "200":
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  schemas:
+    InviteTeamMemberInput:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - role
+        - gender
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            [
+              devOps,
+              administrator,
+              operations,
+              storeManager,
+              marketingAndSales,
+              accountant,
+              driver,
+            ]
+        gender:
+          type: string
+          enum: [Male, Female]
+        phoneNumber:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+
+    UpdateAdminUserInput:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            [
+              operations,
+              administrator,
+              devOps,
+              storeManager,
+              marketingAndSales,
+              accountant,
+              driver,
+            ]
+        status:
+          type: string
+          enum: [pending, active, inactive]
+        gender:
+          type: string
+          enum: [Male, Female]
+        phoneNumber:
+          type: string
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+        role:
+          type: string
+        gender:
+          type: string
+        phoneNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AdminUser"
+        accessToken:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

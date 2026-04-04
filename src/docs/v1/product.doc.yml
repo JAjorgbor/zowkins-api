@@ -1,0 +1,123 @@
+openapi: 3.0.3
+info:
+  title: Product API
+  version: "1.0.0"
+tags:
+  - name: Products
+    description: Public product operations
+paths:
+  /products/{slug}:
+    get:
+      tags:
+        - Products
+      summary: Get visible product by slug
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The product slug
+      responses:
+        "200":
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        category:
+          oneOf:
+            - type: string
+            - type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+        subcategory:
+          oneOf:
+            - type: string
+            - type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+        image:
+          type: object
+          properties:
+            url:
+              type: string
+            key:
+              type: string
+        price:
+          type: number
+        description:
+          type: string
+        visible:
+          type: boolean
+        inStock:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+          example: 100
+        itemCount:
+          type: integer
+          example: 10
+        itemsPerPage:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 10
+        currentPage:
+          type: integer
+          example: 1
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

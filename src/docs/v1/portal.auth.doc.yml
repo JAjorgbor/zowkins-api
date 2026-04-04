@@ -1,0 +1,294 @@
+openapi: 3.0.0
+info:
+  title: Portal Auth API
+  version: 1.0.0
+tags:
+  - name: Portal Auth
+    description: Portal user authentication and account management
+
+paths:
+  /portal/auth/create-account:
+    post:
+      tags:
+        - Portal Auth
+      summary: Create a new portal account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePortalAccountInput"
+      responses:
+        "201":
+          description: Created
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+                example: portalRefreshToken=abc123...; HttpOnly; Secure; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /portal/auth/login:
+    post:
+      tags:
+        - Portal Auth
+      summary: Login with portal credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PortalLoginInput"
+      responses:
+        "200":
+          description: Logged in successfully
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalAuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /portal/auth/refresh-tokens:
+    post:
+      tags:
+        - Portal Auth
+      summary: Refresh authentication tokens
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /portal/auth/logout:
+    post:
+      tags:
+        - Portal Auth
+      summary: Logout of portal account
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /portal/auth/reset-password:
+    post:
+      tags:
+        - Portal Auth
+      summary: Send password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /portal/auth/set-new-password/{token}:
+    post:
+      tags:
+        - Portal Auth
+      summary: Set a new password
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        "200":
+          description: Password reset successful
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreatePortalAccountInput:
+      type: object
+      required:
+        - firstName
+        - email
+        - phoneNumber
+        - password
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        password:
+          type: string
+          format: password
+          minLength: 8
+        dateOfBirth:
+          type: string
+          format: date
+      example:
+        firstName: John
+        lastName: Doe
+        email: john.doe@example.com
+        phoneNumber: "+1234567890"
+        password: password123
+        gender: male
+
+    PortalLoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      example:
+        email: john.doe@example.com
+        password: password123
+
+    PortalAuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/PortalUser"
+        accessToken:
+          type: string
+
+    PortalUser:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phoneNumber:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        status:
+          type: string
+        isEmailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
