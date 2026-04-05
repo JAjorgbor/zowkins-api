@@ -5,6 +5,7 @@ import { z } from "zod";
 const envVarsSchema = z.object({
   NODE_ENV: z.enum(["production", "development", "test"]),
   PORT: z.coerce.number().default(5500),
+  BASE_URL: z.string(),
   WEBSITE_URL: z.string(),
   DATABASE_NAME: z.string(),
   DATABASE_URL: z.string(),
@@ -41,6 +42,7 @@ if (!envVars.success) {
 export default {
   env: envVars.data.NODE_ENV,
   port: envVars.data.PORT,
+  baseUrl: envVars.data.BASE_URL,
   websiteUrl: envVars.data.WEBSITE_URL,
   mongoose: {
     url:
