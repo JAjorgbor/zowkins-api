@@ -42,10 +42,10 @@ const options = {
         url: `http://localhost:${config.port}/v1`,
         description: "Local server",
       },
-      // {
-      //   url: `https://api-sandbox.pharmahubmedica.ng/v2`,
-      //   description: "Sandbox server",
-      // },
+      {
+        url: `${config.baseUrl}/v1`,
+        description: "Sandbox server",
+      },
     ],
   },
   apis: [...filteredApis],
