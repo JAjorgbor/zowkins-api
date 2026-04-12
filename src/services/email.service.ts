@@ -16,7 +16,7 @@ sendpulse.init(
   API_USER_ID,
   API_SECRET,
   "/tmp/sendpulse-token-storage",
-  () => {}
+  () => {},
 );
 
 export const sendTemplateEmail = ({
@@ -85,7 +85,7 @@ const adminUserInvite = async ({
   await sendEmailWithRetry({
     toEmail,
     subject: "Admin User Invite",
-    templateId: 66330,
+    templateId: 84586,
     variables: {
       firstName,
       ctaLink: `${config.websiteUrl}/admin/accept-invite/${token}?firstName=${firstName}`,
@@ -125,7 +125,7 @@ const adminResetPassword = async ({
   await sendEmailWithRetry({
     toEmail,
     subject: "Reset Admin Password",
-    templateId: 67528,
+    templateId: 84625,
     variables: {
       firstName,
       ctaLink: `${config.websiteUrl}/admin/reset-password?token=${token}&firstName=${firstName}`,
@@ -144,7 +144,7 @@ const notifyAddedReferralPartner = async ({
 }) => {
   await sendEmailWithRetry({
     toEmail,
-    subject: "You've Been Enabled as a Referral Partner on PharmaHub Medica",
+    subject: "You've Been Enabled as a Referral Partner on Zowkins",
     templateId: 67564,
     variables: {
       firstName,

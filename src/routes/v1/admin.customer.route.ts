@@ -15,12 +15,12 @@ router.get(
   adminCustomerController.getCustomers,
 );
 
-router.get(
-  "/non-referral-partners",
-  auth("manageCustomers"),
-  validate(adminCustomerValidation.getNonReferralPartners),
-  adminCustomerController.getNonReferralPartners,
-);
+// router.get(
+//   "/non-referral-partners",
+//   auth("manageCustomers"),
+//   validate(adminCustomerValidation.getNonReferralPartners),
+//   adminCustomerController.getNonReferralPartners,
+// );
 
 router.get(
   "/stats",

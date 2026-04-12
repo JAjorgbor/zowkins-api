@@ -39,28 +39,28 @@ const portalUserSchema = new mongoose.Schema(
     dateOfBirth: {
       type: Date,
     },
-    security: {
-      password: {
-        select: false,
-        type: String,
-        trim: true,
-        minlength: 8,
-        validate(value: string) {
-          if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
-            throw new Error(
-              "Password must contain at least one letter and one number",
-            );
-          }
-        },
-        private: true,
-      },
-      authProvider: {
-        type: String,
-        required: true,
-        enum: ["credentials"],
-        default: "credentials",
-      },
-    },
+    // security: {
+    //   password: {
+    //     select: false,
+    //     type: String,
+    //     trim: true,
+    //     minlength: 8,
+    //     validate(value: string) {
+    //       if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
+    //         throw new Error(
+    //           "Password must contain at least one letter and one number",
+    //         );
+    //       }
+    //     },
+    //     private: true,
+    //   },
+    //   authProvider: {
+    //     type: String,
+    //     required: true,
+    //     enum: ["credentials"],
+    //     default: "credentials",
+    //   },
+    // },
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -136,16 +136,16 @@ portalUserSchema.methods.isPasswordMatch = async function (password: string) {
   return bcrypt.compare(password, user.security.password);
 };
 
-portalUserSchema.pre("save", async function () {
-  const user = this;
-  if (user.isModified("security.password")) {
-    if (user?.security?.password == undefined) {
-      return;
-    }
+// portalUserSchema.pre("save", async function () {
+//   const user = this;
+//   if (user.isModified("security.password")) {
+//     if (user?.security?.password == undefined) {
+//       return;
+//     }
 
-    user.security.password = await bcrypt.hash(user.security.password, 8);
-  }
-});
+//     user.security.password = await bcrypt.hash(user.security.password, 8);
+//   }
+// });
 
 export type PortalUserType = InferSchemaType<typeof portalUserSchema>;
 export type PortalUserDoc = HydratedDocument<PortalUserType>;
