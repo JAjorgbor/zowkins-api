@@ -103,7 +103,7 @@ const updatePortalUserPassword = async (
   if (!isCurrentPasswordCorrect)
     throw new ApiError(httpStatus.BAD_REQUEST, "Current password is incorrect");
 
-  user.security!.password = newPassword;
+  // user.security!.password = newPassword;
   await user.save();
   return user;
 };
