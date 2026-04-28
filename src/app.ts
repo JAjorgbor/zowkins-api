@@ -31,6 +31,7 @@ const explicitAllowedOrigins = new Set<string>([
   "http://localhost:3001",
   `http://localhost:${config.port}`,
   "https://zowkins-api.onrender.com",
+  "https://zowkins.vercel.app",
 ]);
 
 /** Allow root + any subdomain that ends with .zowkins.com */
@@ -43,7 +44,8 @@ function isAllowedOrigin(origin: string) {
       hostname.endsWith(".zowkins.com") ||
       hostname === "zowkins.ng" ||
       hostname.endsWith(".zowkins.ng") ||
-      hostname === "zowkins-api.onrender.com"
+      hostname === "zowkins-api.onrender.com" ||
+      hostname === "zowkins.vercel.app"
     );
   } catch {
     return false;
