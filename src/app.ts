@@ -30,15 +30,20 @@ const explicitAllowedOrigins = new Set<string>([
   "http://localhost:3000",
   "http://localhost:3001",
   `http://localhost:${config.port}`,
+  "https://zowkins-api.onrender.com",
 ]);
 
-/** Allow root + any subdomain that ends with .pharmahubmedica.ng */
+/** Allow root + any subdomain that ends with .zowkins.com */
 function isAllowedOrigin(origin: string) {
   try {
     const { hostname } = new URL(origin);
     return (
-      hostname === "pharmahubmedica.ng" ||
-      hostname.endsWith(".pharmahubmedica.ng")
+      hostname === "zowkins.com" ||
+      hostname === "www.zowkins.com" ||
+      hostname.endsWith(".zowkins.com") ||
+      hostname === "zowkins.ng" ||
+      hostname.endsWith(".zowkins.ng") ||
+      hostname === "zowkins-api.onrender.com"
     );
   } catch {
     return false;

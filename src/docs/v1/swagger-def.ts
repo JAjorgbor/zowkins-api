@@ -35,12 +35,12 @@ const options = {
     },
     servers: [
       {
-        url: `http://localhost:${config.port}/v1`,
-        description: "Local server",
-      },
-      {
         url: `${config.baseUrl}/v1`,
         description: "Sandbox server",
+      },
+      {
+        url: `http://localhost:${config.port}/v1`,
+        description: "Local server",
       },
     ],
   },
