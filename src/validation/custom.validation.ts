@@ -1,7 +1,13 @@
 import z, { ZodArray, ZodNumber, ZodString, ZodType } from "zod";
 
-const imageFileSchema = z.object({
-  mimeType: z.enum(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]),
+const fileSchema = z.object({
+  mimeType: z.enum([
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/svg+xml",
+    "application/pdf",
+  ]),
   size: z.number().max(10 * 1024 * 1024), // 10MB
   filename: z.string().min(1),
 });
@@ -32,7 +38,7 @@ const required = <T extends ZodType>(schema: T, message?: string): T => {
 const email = required(z.email(), "Email address is required");
 
 export default {
-  imageFileSchema,
+  fileSchema,
   required,
   email,
 };

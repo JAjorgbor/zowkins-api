@@ -93,12 +93,12 @@ const createProduct = async (req: Request) => {
   const _id = new Types.ObjectId();
 
   let payload: ProductDoc;
-  const { image, fields } = await handleAssetUpload(
+  const { file: image, fields } = await handleAssetUpload(
     req,
     `products/${_id}.jpg`,
     {
       fields: productValidation.createProduct,
-      file: customValidation.imageFileSchema,
+      file: customValidation.fileSchema,
       requireFile: true,
       callback: async (parsedFields) => {
         const category = await categoryService.getCategory({
@@ -123,12 +123,12 @@ const createProduct = async (req: Request) => {
   return product;
 };
 const updateProduct = async (productId: string, req: Request) => {
-  const { image, fields } = await handleAssetUpload(
+  const { file: image, fields } = await handleAssetUpload(
     req,
     `products/${productId}.jpg`,
     {
       fields: productValidation.updateProduct,
-      file: customValidation.imageFileSchema,
+      file: customValidation.fileSchema,
       requireFile: true,
       callback: async (parsedFields) => {
         const category = await categoryService.getCategory({

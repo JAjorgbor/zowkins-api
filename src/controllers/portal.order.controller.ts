@@ -6,18 +6,25 @@ import { type Request, type Response } from "express";
 import ApiError from "@/utils/api-error.js";
 
 const createOrder = catchAsync(async (req: Request, res: Response) => {
-  const { customer, items, deliveryAddress, deliveryMethod } = req.body as {
-    customer: string;
-    items: { productId: string; quantity: number }[];
-    deliveryAddress: string;
-    deliveryMethod: string;
-  };
+  const { customer, items, deliveryAddress, deliveryMethod } = req.body;
+  const user = await portalUserService.createPortalUser(customer);
+
+  // const { customer, items, deliveryAddress, deliveryMethod } = req.body as {
+  //   customer: string;
+  //   items: { productId: string; quantity: number }[];
+  //   deliveryAddress: string;
+  //   deliveryMethod: string;
+  // };
   const order = await orderService.createOrder({
-    customer,
+    customer: user?._id?.toString() as string,
     items,
     deliveryAddress,
     deliveryMethod,
   });
+  res.status(httpStatus.OK).json({ success: true, order });
+});
+const requestOrderQuote = catchAsync(async (req: Request, res: Response) => {
+  const order = await orderService.requestOrderQuote(req);
   res.status(httpStatus.OK).json({ success: true, order });
 });
 
@@ -69,4 +76,5 @@ export default {
   getPortalUserOrders,
   getPortalUserRecentOrders,
   getPortalUserOrderStats,
+  requestOrderQuote,
 };

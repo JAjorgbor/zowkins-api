@@ -24,6 +24,27 @@ components:
                 type: number
               amount:
                 type: number
+        quoteDetails:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  quantity:
+                    type: number
+            note:
+              type: string
+            file:
+              type: object
+              properties:
+                url:
+                  type: string
+                key:
+                  type: string
         transaction:
           type: object
           properties:
@@ -68,7 +89,20 @@ paths:
               required: [customer, items, deliveryAddress, deliveryMethod]
               properties:
                 customer:
-                  type: string
+                  type: object
+                  required: [firstName, lastName, email, phoneNumber]
+                  properties:
+                    firstName:
+                      type: string
+                    lastName:
+                      type: string
+                    gender:
+                      type: string
+                      enum: [male, female]
+                    email:
+                      type: string
+                    phoneNumber:
+                      type: string
                 items:
                   type: array
                   items:
@@ -79,7 +113,23 @@ paths:
                       quantity:
                         type: number
                 deliveryAddress:
-                  type: string
+                  type: object
+                  required: [label, phoneNumber, street, city, state]
+                  properties:
+                    label:
+                      type: string
+                    phoneNumber:
+                      type: string
+                    street:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    country:
+                      type: string
+                    postalCode:
+                      type: string
                 deliveryMethod:
                   type: string
       responses:
@@ -228,3 +278,45 @@ paths:
                         type: number
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /portal/orders/quote:
+    post:
+      summary: Request an order quote
+      tags: [Portal Order]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [customer, items, deliveryAddress, file]
+              properties:
+                customer:
+                  type: string
+                  description: JSON stringified customer object containing firstName, lastName, email, phoneNumber
+                items:
+                  type: string
+                  description: JSON stringified array of objects containing name and quantity
+                deliveryAddress:
+                  type: string
+                  description: JSON stringified address object
+                note:
+                  type: string
+                data:
+                  type: string
+                  format: binary
+                  description: Upload quote document (use 'data' as the field name for the document)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  order:
+                    $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"

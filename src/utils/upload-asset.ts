@@ -9,7 +9,7 @@ import httpStatus from "http-status";
 import { validateService } from "@/middlewares/validate.js";
 
 type AssetUploadResult = {
-  image: { url: string; key: string };
+  file: { url: string; key: string };
   fields: any;
 };
 
@@ -36,7 +36,7 @@ async function uploadToR2({
       Body: buffer,
       ContentType: contentType,
       ContentLength: buffer.length,
-    })
+    }),
   );
 
   return {
@@ -48,7 +48,7 @@ async function uploadToR2({
 export function handleAssetUpload(
   req: Request,
   key: string,
-  validation?: UploadValidation
+  validation?: UploadValidation,
 ): Promise<AssetUploadResult> {
   return new Promise((resolve, reject) => {
     const busboy = Busboy({ headers: req.headers });
@@ -88,8 +88,8 @@ export function handleAssetUpload(
             reject(
               new ApiError(
                 httpStatus.BAD_REQUEST,
-                "Invalid JSON in data file part: " + error.message
-              )
+                "Invalid JSON in data file part: " + error.message,
+              ),
             );
           }
         });
@@ -98,7 +98,7 @@ export function handleAssetUpload(
 
       if (fileSeen) {
         reject(
-          new ApiError(httpStatus.BAD_REQUEST, "Only one file upload allowed")
+          new ApiError(httpStatus.BAD_REQUEST, "Only one file upload allowed"),
         );
         file.resume();
         return;
@@ -135,7 +135,7 @@ export function handleAssetUpload(
 
         if (!fileSeen) {
           return resolve({
-            image: { url: "", key: "" },
+            file: { url: "", key: "" },
             fields,
           });
         }
@@ -157,13 +157,13 @@ export function handleAssetUpload(
         }
 
         /** ---------- UPLOAD ---------- */
-        const image = await uploadToR2({
+        const file = await uploadToR2({
           key,
           buffer,
           contentType: fileMime!,
         });
 
-        resolve({ image, fields });
+        resolve({ file, fields });
       } catch (err) {
         console.log(err);
         reject(err);

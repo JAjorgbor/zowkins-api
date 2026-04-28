@@ -19,6 +19,8 @@ router
     orderController.createOrder,
   );
 
+router.route("/quote").post(orderController.requestOrderQuote);
+
 router
   .route("/stats")
   .get(portalAuth(), orderController.getPortalUserOrderStats);

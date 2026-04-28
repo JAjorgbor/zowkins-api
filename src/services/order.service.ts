@@ -5,7 +5,12 @@ import deliveryMethodService from "@/services/delivery-method.service.js";
 import portalUserService from "@/services/portal.user.service.js";
 import referralPartnerService from "@/services/referral-partner.service.js";
 import ApiError from "@/utils/api-error.js";
+import { handleAssetUpload } from "@/utils/upload-asset.js";
+import customValidation from "@/validation/custom.validation.js";
+import orderValidation from "@/validation/order.validation.js";
+import type { Request } from "express";
 import httpStatus from "http-status";
+import { Types } from "mongoose";
 
 const createOrder = async ({
   customer,
@@ -15,7 +20,7 @@ const createOrder = async ({
 }: {
   customer: string;
   items: { productId: string; quantity: number }[];
-  deliveryAddress: string;
+  deliveryAddress: any;
   deliveryMethod: string;
 }) => {
   const portalUser = await portalUserService.getPortalUser({ _id: customer });
@@ -29,13 +34,13 @@ const createOrder = async ({
     });
   }
 
-  const deliveryAddressDetails =
-    await deliveryAddressService.getDeliveryAddressById(
-      portalUser._id.toString(),
-      deliveryAddress,
-    );
-  if (!deliveryAddressDetails)
-    throw new ApiError(httpStatus.NOT_FOUND, "Delivery Address not found");
+  // const deliveryAddressDetails =
+  //   await deliveryAddressService.getDeliveryAddressById(
+  //     portalUser._id.toString(),
+  //     deliveryAddress,
+  //   );
+  // if (!deliveryAddressDetails)
+  //   throw new ApiError(httpStatus.NOT_FOUND, "Delivery Address not found");
 
   const deliveryMethodDetails = await deliveryMethodService.getDeliveryMethod({
     _id: deliveryMethod,
@@ -46,8 +51,10 @@ const createOrder = async ({
     _id: { $in: items.map((item) => item.productId) },
   });
 
-  if (fetchedProducts.length !== items.length) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Some products not found");
+  for (const item of items) {
+    if (!fetchedProducts.find((product) => product._id.toString() === item.productId)) {
+      throw new ApiError(httpStatus.NOT_FOUND, `Product not found: ${item.productId}`);
+    }
   }
   const subTotal = items.reduce(
     (total, item) =>
@@ -92,7 +99,7 @@ const createOrder = async ({
   const order = await Order.create({
     customer,
     products: normalizedItems,
-    deliveryAddress: deliveryAddressDetails,
+    deliveryAddress,
     referralDetails,
     transaction: {
       subTotal,
@@ -100,6 +107,34 @@ const createOrder = async ({
       deliveryFee: deliveryMethodDetails.fee,
     },
     deliveryMethod: deliveryMethodDetails,
+  });
+  return order;
+};
+const requestOrderQuote = async (req: Request) => {
+  const _id = new Types.ObjectId();
+
+  const { file, fields } = await handleAssetUpload(
+    req,
+    `orders/quotes/${_id}`,
+    {
+      fields: orderValidation.requestOrderQuote,
+      file: customValidation.fileSchema,
+      requireFile: true,
+    },
+  );
+
+  const { customer, items, deliveryAddress, note } = fields;
+  const portalUser = await portalUserService.createPortalUser(customer);
+  if (!portalUser?._id)
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to create or retrieve portal user");
+
+  const order = await Order.create({
+    customer: portalUser._id.toString(),
+    quoteDetails: { items, note: note || "", file },
+    deliveryAddress,
+    transaction: {
+      totalAmount: 0,
+    },
   });
   return order;
 };
@@ -329,8 +364,10 @@ const updateOrderProducts = async (
     _id: { $in: products.map((item) => item.productId) },
   });
 
-  if (fetchedProducts.length !== products.length) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Some products not found");
+  for (const item of products) {
+    if (!fetchedProducts.find((product) => product._id.toString() === item.productId)) {
+      throw new ApiError(httpStatus.NOT_FOUND, `Product not found: ${item.productId}`);
+    }
   }
 
   // Calculate new total
@@ -394,4 +431,5 @@ export default {
   updateOrderProducts,
   getPortalUserOrdersStats,
   getGeneralOrdersStats,
+  requestOrderQuote,
 };

@@ -17,7 +17,23 @@ const orderSchema = new mongoose.Schema(
       ref: "Portal_User",
       required: true,
     },
-
+    quoteDetails: {
+      items: [
+        {
+          name: { type: String },
+          quantity: { type: Number },
+        },
+      ],
+      note: { type: String },
+      file: {
+        url: {
+          type: String,
+        },
+        key: {
+          type: String,
+        },
+      },
+    },
     products: [
       {
         // dynamic ref to reference multiple different mongoose models

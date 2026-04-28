@@ -131,10 +131,10 @@ portalUserSchema.statics.isEmailTaken = async function (email, excludeUserId) {
  * @param {string} password
  * @returns {Promise<boolean>}
  */
-portalUserSchema.methods.isPasswordMatch = async function (password: string) {
-  const user = this;
-  return bcrypt.compare(password, user.security.password);
-};
+// portalUserSchema.methods.isPasswordMatch = async function (password: string) {
+//   const user = this;
+//   return bcrypt.compare(password, user.security.password);
+// };
 
 // portalUserSchema.pre("save", async function () {
 //   const user = this;

@@ -37,7 +37,8 @@ const getPortalUsers = async (filterParams: any = {}) => {
 
 const createPortalUser = async (userBody: any) => {
   if (await (PortalUser as any).isEmailTaken(userBody.email)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Email already taken");
+    const existingUser = await PortalUser.findOne({ email: userBody.email });
+    return existingUser;
   }
 
   // Handle referral code
@@ -52,10 +53,10 @@ const createPortalUser = async (userBody: any) => {
   }
 
   // create security object
-  const security = {
-    password: userBody.password,
-  };
-  userBody.security = security;
+  // const security = {
+  //   password: userBody.password,
+  // };
+  // userBody.security = security;
 
   return await PortalUser.create(userBody);
 };
