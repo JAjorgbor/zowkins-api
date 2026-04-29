@@ -1,11 +1,12 @@
 import config from "@/config/config.js";
 import sendpulse from "sendpulse-api";
+import currencyFormatter from "@/utils/currency-formatter.js";
 
 const API_USER_ID = config.email.smtp.clientId;
 const API_SECRET = config.email.smtp.clientSecret;
 
 type EmailData = {
-  toEmail: string;
+  toEmail: string | string[];
   toName?: string;
   subject: string;
   templateId: number;
@@ -34,12 +35,17 @@ export const sendTemplateEmail = ({
         name: config.email.from.name,
         email: config.email.from.address,
       },
-      to: [
-        {
-          name: toName || "",
-          email: toEmail,
-        },
-      ],
+      to: Array.isArray(toEmail)
+        ? toEmail.map((email) => ({
+            name: toName || "",
+            email,
+          }))
+        : [
+            {
+              name: toName || "",
+              email: toEmail,
+            },
+          ],
       template: {
         id: templateId,
         variables,
@@ -85,7 +91,7 @@ const adminUserInvite = async ({
   await sendEmailWithRetry({
     toEmail,
     subject: "Admin User Invite",
-    templateId: 84586,
+    templateId: 88004,
     variables: {
       firstName,
       ctaLink: `${config.websiteUrl}/admin/accept-invite/${token}?firstName=${firstName}`,
@@ -109,6 +115,289 @@ const portalResetPassword = async ({
     variables: {
       firstName,
       ctaLink: `${config.websiteUrl}/portal/reset-password?token=${token}&firstName=${firstName}`,
+    },
+  });
+};
+
+const portalOrderConfirmation = async ({
+  toEmail,
+  firstName,
+  orderNumber,
+  createdAt,
+  products,
+  deliveryAddress,
+  deliveryMethod,
+  subTotal,
+  deliveryFee,
+  totalAmount,
+}: {
+  toEmail: string;
+  firstName: string;
+  orderNumber: string;
+  createdAt: string;
+  products: { name: string; quantity: number; amount: number }[];
+  deliveryAddress: string;
+  deliveryMethod: string;
+  subTotal: number;
+  deliveryFee: number;
+  totalAmount: number;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `Your Order Has Been Received — ${orderNumber}`,
+    templateId: 87798,
+    variables: {
+      firstName,
+      orderNumber,
+      createdAt,
+      products: products
+        .map(
+          (p, i) =>
+            `${i + 1}. ${p.name} x${p.quantity} - ${currencyFormatter(p.amount)}`,
+        )
+        .join("\n"),
+      deliveryAddress,
+      deliveryMethod,
+      subTotal: currencyFormatter(subTotal),
+      deliveryFee: currencyFormatter(deliveryFee),
+      totalAmount: currencyFormatter(totalAmount),
+    },
+  });
+};
+
+const adminOrderNotification = async ({
+  toEmail,
+  customerName,
+  orderNumber,
+  customerPhone,
+  customerEmail,
+  createdAt,
+  products,
+  deliveryAddress,
+  deliveryMethod,
+  subTotal,
+  deliveryFee,
+  totalAmount,
+}: {
+  toEmail: string[];
+  customerName: string;
+  orderNumber: string;
+  customerPhone: string;
+  customerEmail: string;
+  createdAt: string;
+  products: { name: string; quantity: number; amount: number }[];
+  deliveryAddress: string;
+  deliveryMethod: string;
+  subTotal: number;
+  deliveryFee: number;
+  totalAmount: number;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `New Order Received — ${orderNumber}`,
+    templateId: 87842,
+    variables: {
+      customerName,
+      customerPhone,
+      customerEmail,
+      orderNumber,
+      createdAt,
+      products: products
+        .map(
+          (p, i) =>
+            `${i + 1}. ${p.name} x${p.quantity} - ${currencyFormatter(p.amount)}`,
+        )
+        .join("\n"),
+      deliveryAddress,
+      deliveryMethod,
+      subTotal: currencyFormatter(subTotal),
+      deliveryFee: currencyFormatter(deliveryFee),
+      totalAmount: currencyFormatter(totalAmount),
+    },
+  });
+};
+const adminOrderQuoteRequest = async ({
+  toEmail,
+  customerName,
+  orderNumber,
+  customerPhone,
+  customerEmail,
+  createdAt,
+  products,
+  note,
+  fileUrl,
+  deliveryAddress,
+}: {
+  toEmail: string[];
+  customerName: string;
+  orderNumber: string;
+  customerPhone: string;
+  customerEmail: string;
+  createdAt: string;
+  products?: { name: string; quantity: number }[];
+  note?: string;
+  fileUrl?: string;
+  deliveryAddress: string;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `New Quote Request — ${orderNumber}`,
+    templateId: 87976,
+    variables: {
+      customerName,
+      customerPhone,
+      customerEmail,
+      orderNumber,
+      createdAt,
+      products: products
+        ? `
+        Requested Items: \n
+        ${products
+          .map((p, i) => `${i + 1}. ${p.name} x${p.quantity}`)
+          .join("\n")}`
+        : "",
+      note: note ? `Aditional Note: \n ${note}` : "",
+      fileUrl: fileUrl ? `Attatched Document: \n ${fileUrl}` : "",
+      deliveryAddress,
+    },
+  });
+};
+const portalOrderQuote = async ({
+  toEmail,
+  firstName,
+  orderNumber,
+  createdAt,
+  products,
+  note,
+  fileUrl,
+  deliveryAddress,
+}: {
+  toEmail: string;
+  firstName: string;
+  orderNumber: string;
+  createdAt: string;
+  products?: { name: string; quantity: number }[];
+  note?: string;
+  fileUrl?: string;
+  deliveryAddress: string;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `New Quote Request — ${orderNumber}`,
+    templateId: 87978,
+    variables: {
+      firstName,
+      orderNumber,
+      createdAt,
+      products: products
+        ? `
+        Requested Items: \n
+        ${products
+          .map((p, i) => `${i + 1}. ${p.name} x${p.quantity}`)
+          .join("\n")}`
+        : "",
+      note: note ? `Aditional Note: \n ${note}` : "",
+      fileUrl: fileUrl ? `Attatched Document: \n ${fileUrl}` : "",
+      deliveryAddress,
+    },
+  });
+};
+
+const potalOrderPaymentConfirmed = async ({
+  toEmail,
+  firstName,
+  orderNumber,
+  createdAt,
+  totalAmount,
+}: {
+  toEmail: string;
+  firstName: string;
+  orderNumber: string;
+  createdAt: string;
+  totalAmount: number;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `Payment Confirmed — ${orderNumber}`,
+    templateId: 87854,
+    variables: {
+      firstName,
+      orderNumber,
+      createdAt,
+      totalAmount: currencyFormatter(totalAmount),
+    },
+  });
+};
+
+const adminOrderPaymentConfirmed = async ({
+  toEmail,
+  firstName,
+  orderNumber,
+  createdAt,
+  totalAmount,
+}: {
+  toEmail: string[];
+  firstName: string;
+  orderNumber: string;
+  createdAt: string;
+  totalAmount: number;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `Payment Confirmed — ${orderNumber}`,
+    templateId: 87855,
+    variables: {
+      firstName,
+      orderNumber,
+      createdAt,
+      totalAmount: currencyFormatter(totalAmount),
+    },
+  });
+};
+
+const portalOrderCancelled = async ({
+  toEmail,
+  firstName,
+  orderNumber,
+}: {
+  toEmail: string;
+  firstName: string;
+  orderNumber: string;
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `Order Cancelled — ${orderNumber}`,
+    templateId: 87973,
+    variables: {
+      firstName,
+      orderNumber,
+    },
+  });
+};
+const portalOrderDelivered = async ({
+  toEmail,
+  firstName,
+  orderNumber,
+  products,
+}: {
+  toEmail: string;
+  firstName: string;
+  orderNumber: string;
+  products: { name: string; quantity: number; amount: number }[];
+}) => {
+  await sendEmailWithRetry({
+    toEmail,
+    subject: `Order Delivered — ${orderNumber}`,
+    templateId: 87974,
+    variables: {
+      firstName,
+      orderNumber,
+      products: products
+        .map(
+          (p, i) =>
+            `${i + 1}. ${p.name} x${p.quantity} - ${currencyFormatter(p.amount)}`,
+        )
+        .join("\n"),
     },
   });
 };
@@ -160,4 +449,12 @@ export default {
   portalResetPassword,
   adminResetPassword,
   notifyAddedReferralPartner,
+  portalOrderConfirmation,
+  adminOrderNotification,
+  adminOrderQuoteRequest,
+  portalOrderQuote,
+  potalOrderPaymentConfirmed,
+  adminOrderPaymentConfirmed,
+  portalOrderCancelled,
+  portalOrderDelivered,
 };

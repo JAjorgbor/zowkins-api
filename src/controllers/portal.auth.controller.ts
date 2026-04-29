@@ -29,7 +29,7 @@ const login = catchAsync(async (req: Request, res: Response) => {
   const user = await portalAuthService.loginWithCredentials(
     email,
     password,
-    req.cookies.portalRefreshToken
+    req.cookies.portalRefreshToken,
   );
   const tokens = await tokenService.generateAuthTokens(user, "Portal_User");
 
@@ -48,7 +48,7 @@ const login = catchAsync(async (req: Request, res: Response) => {
 
 const refreshTokens = catchAsync(async (req: Request, res: Response) => {
   const tokens = await portalAuthService.refreshAuth(
-    req.cookies.portalRefreshToken
+    req.cookies.portalRefreshToken,
   );
   res.send({ accessToken: tokens.access.token });
 });
@@ -70,7 +70,7 @@ const setNewPassword = catchAsync(async (req: Request, res: Response) => {
 
   const user = await portalAuthService.setNewPassword(
     token!,
-    req.body.password!
+    req.body.password!,
   );
 
   const tokens = await tokenService.generateAuthTokens(user, "Portal_User");

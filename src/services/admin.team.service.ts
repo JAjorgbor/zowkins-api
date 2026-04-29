@@ -10,8 +10,8 @@ import Token from "@/models/token.model.js";
  * Get all admin team members
  * @returns {Promise<[AdminUser]>}
  */
-const getAdminUsers = async () => {
-  return AdminUser.find({});
+const getAdminUsers = async (filter?: any) => {
+  return AdminUser.find(filter);
 };
 
 /**
@@ -68,7 +68,7 @@ const acceptInvite = async (token: string, password: string) => {
   const tokenDoc: any = await tokenService.verifyToken(
     token!,
     tokenTypes.INVITE_ADMIN_USER,
-    "Admin_User"
+    "Admin_User",
   );
 
   const user = await updateAdminUser(tokenDoc.user!, {

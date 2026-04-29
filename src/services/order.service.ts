@@ -1,7 +1,10 @@
 import Order from "@/models/order.model.js";
+import adminTeamService from "@/services/admin.team.service.js";
+import moment from "moment";
 import Product from "@/models/product.model.js";
 import deliveryAddressService from "@/services/delivery-address.service.js";
 import deliveryMethodService from "@/services/delivery-method.service.js";
+import emailService from "@/services/email.service.js";
 import portalUserService from "@/services/portal.user.service.js";
 import referralPartnerService from "@/services/referral-partner.service.js";
 import ApiError from "@/utils/api-error.js";
@@ -11,6 +14,7 @@ import orderValidation from "@/validation/order.validation.js";
 import type { Request } from "express";
 import httpStatus from "http-status";
 import { Types } from "mongoose";
+import roles from "@/config/roles.js";
 
 const createOrder = async ({
   customer,
@@ -52,8 +56,15 @@ const createOrder = async ({
   });
 
   for (const item of items) {
-    if (!fetchedProducts.find((product) => product._id.toString() === item.productId)) {
-      throw new ApiError(httpStatus.NOT_FOUND, `Product not found: ${item.productId}`);
+    if (
+      !fetchedProducts.find(
+        (product) => product._id.toString() === item.productId,
+      )
+    ) {
+      throw new ApiError(
+        httpStatus.NOT_FOUND,
+        `Product not found: ${item.productId}`,
+      );
     }
   }
   const subTotal = items.reduce(
@@ -108,6 +119,47 @@ const createOrder = async ({
     },
     deliveryMethod: deliveryMethodDetails,
   });
+
+  await emailService.portalOrderConfirmation({
+    toEmail: portalUser.email,
+    createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+    deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+    deliveryFee: deliveryMethodDetails.fee,
+    subTotal,
+    totalAmount,
+    products: normalizedItems.map((each) => ({
+      name: each.productName!,
+      amount: each.amount!,
+      quantity: each.quantity!,
+    })),
+    deliveryMethod: deliveryMethodDetails.name,
+    orderNumber: order.orderNumber,
+    firstName: portalUser.firstName,
+  });
+
+  const notifiedAdmins = await adminTeamService.getAdminUsers({
+    role: roles.getAdminRolesWithPermission("manageOrders"),
+  });
+  if (notifiedAdmins.length) {
+    await emailService.adminOrderNotification({
+      toEmail: notifiedAdmins.map((admin) => admin.email as string),
+      createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+      deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+      customerPhone: portalUser.phoneNumber,
+      customerEmail: portalUser.email,
+      deliveryFee: deliveryMethodDetails.fee,
+      subTotal,
+      totalAmount,
+      products: normalizedItems.map((each) => ({
+        name: each.productName!,
+        amount: each.amount!,
+        quantity: each.quantity!,
+      })),
+      deliveryMethod: deliveryMethodDetails.name,
+      orderNumber: order.orderNumber,
+      customerName: `${portalUser.firstName} ${portalUser.lastName}`,
+    });
+  }
   return order;
 };
 const requestOrderQuote = async (req: Request) => {
@@ -126,9 +178,13 @@ const requestOrderQuote = async (req: Request) => {
   const { customer, items, deliveryAddress, note } = fields;
   const portalUser = await portalUserService.createPortalUser(customer);
   if (!portalUser?._id)
-    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to create or retrieve portal user");
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Failed to create or retrieve portal user",
+    );
 
   const order = await Order.create({
+    _id,
     customer: portalUser._id.toString(),
     quoteDetails: { items, note: note || "", file },
     deliveryAddress,
@@ -136,6 +192,41 @@ const requestOrderQuote = async (req: Request) => {
       totalAmount: 0,
     },
   });
+
+  await emailService.portalOrderQuote({
+    toEmail: portalUser.email,
+    createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+    deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+    products: items.map((each: any) => ({
+      name: each.name,
+      quantity: each.quantity,
+    })),
+    note,
+    orderNumber: order.orderNumber,
+    firstName: portalUser.firstName,
+    fileUrl: file?.url,
+  });
+
+  const notifiedAdmins = await adminTeamService.getAdminUsers({
+    role: roles.getAdminRolesWithPermission("manageOrders"),
+  });
+  if (notifiedAdmins.length) {
+    await emailService.adminOrderQuoteRequest({
+      toEmail: notifiedAdmins.map((admin) => admin.email as string),
+      createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+      deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+      products: items.map((each: any) => ({
+        name: each.name,
+        quantity: each.quantity,
+      })),
+      note,
+      orderNumber: order.orderNumber,
+      customerName: `${portalUser.firstName} ${portalUser.lastName}`,
+      customerPhone: portalUser.phoneNumber,
+      customerEmail: portalUser.email,
+      fileUrl: file?.url,
+    });
+  }
   return order;
 };
 
@@ -317,15 +408,75 @@ const updateOrder = async (
     order.referralDetails.commission!.note = updateBody.referralCommissionNote;
   }
 
-  // Remove commission fields from updateBody to avoid overwriting
   const {
     referralCommissionStatus,
     referralCommissionNote,
     ...restUpdateBody
   } = updateBody;
 
+  const previousOrderStatus = order.orderStatus;
+  const previousPaymentStatus = order.paymentStatus;
+
   Object.assign(order, restUpdateBody);
   await order.save();
+
+  const portalUser = await portalUserService.getPortalUser({
+    _id: order.customer as any,
+  });
+  if (portalUser) {
+    if (
+      updateBody.orderStatus &&
+      updateBody.orderStatus !== previousOrderStatus
+    ) {
+      if (updateBody.orderStatus === "cancelled") {
+        await emailService.portalOrderCancelled({
+          toEmail: portalUser.email,
+          firstName: portalUser.firstName,
+          orderNumber: order.orderNumber,
+        });
+      } else if (updateBody.orderStatus === "delivered") {
+        await emailService.portalOrderDelivered({
+          toEmail: portalUser.email,
+          firstName: portalUser.firstName,
+          orderNumber: order.orderNumber,
+          products: order.products.map((each: any) => ({
+            name: each.productName,
+            amount: each.amount,
+            quantity: each.quantity,
+          })),
+        });
+      }
+    }
+
+    if (
+      updateBody.paymentStatus &&
+      updateBody.paymentStatus !== previousPaymentStatus
+    ) {
+      if (updateBody.paymentStatus === "paid") {
+        await emailService.potalOrderPaymentConfirmed({
+          toEmail: portalUser.email,
+          firstName: portalUser.firstName,
+          orderNumber: order.orderNumber,
+          createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+          totalAmount: order.transaction!.totalAmount,
+        });
+
+        const notifiedAdmins = await adminTeamService.getAdminUsers({
+          role: roles.getAdminRolesWithPermission("manageOrders"),
+        });
+        if (notifiedAdmins.length) {
+          await emailService.adminOrderPaymentConfirmed({
+            toEmail: notifiedAdmins.map((admin) => admin.email as string),
+            firstName: portalUser.firstName,
+            orderNumber: order.orderNumber,
+            createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+            totalAmount: order.transaction!.totalAmount,
+          });
+        }
+      }
+    }
+  }
+
   return order;
 };
 
@@ -365,8 +516,15 @@ const updateOrderProducts = async (
   });
 
   for (const item of products) {
-    if (!fetchedProducts.find((product) => product._id.toString() === item.productId)) {
-      throw new ApiError(httpStatus.NOT_FOUND, `Product not found: ${item.productId}`);
+    if (
+      !fetchedProducts.find(
+        (product) => product._id.toString() === item.productId,
+      )
+    ) {
+      throw new ApiError(
+        httpStatus.NOT_FOUND,
+        `Product not found: ${item.productId}`,
+      );
     }
   }
 

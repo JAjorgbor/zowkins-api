@@ -46,22 +46,22 @@ const defaultRoutes = [
     path: "/delivery-methods",
     route: deliveryMethodRoute,
   },
-  {
-    path: "/portal/auth",
-    route: portalAuthRoute,
-  },
-  {
-    path: "/portal/users",
-    route: portalUserRoute,
-  },
+  // {
+  //   path: "/portal/auth",
+  //   route: portalAuthRoute,
+  // },
+  // {
+  //   path: "/portal/users",
+  //   route: portalUserRoute,
+  // },
   // {
   //   path: "/portal/referral-partners",
   //   route: portalReferralPartnerRoute,
   // },
-  {
-    path: "/portal/delivery-address",
-    route: portalDeliveryAddressRoute,
-  },
+  // {
+  //   path: "/portal/delivery-address",
+  //   route: portalDeliveryAddressRoute,
+  // },
   {
     path: "/portal/orders",
     route: portalOrderRoute,

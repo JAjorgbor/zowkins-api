@@ -13,11 +13,7 @@ router
     validate(orderValidation.getOrders),
     orderController.getPortalUserOrders,
   )
-  .post(
-    portalAuth(),
-    validate(orderValidation.createOrder),
-    orderController.createOrder,
-  );
+  .post(validate(orderValidation.createOrder), orderController.createOrder);
 
 router.route("/quote").post(orderController.requestOrderQuote);
 

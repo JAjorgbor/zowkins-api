@@ -76,7 +76,7 @@ const createOrder = {
       )
       .min(1),
     deliveryAddress: z.object({
-      label: z.string().min(1),
+      // label: z.string().min(1),
       phoneNumber: z.string().min(9),
       street: z.string().min(3),
       city: z.string().min(2),
@@ -108,7 +108,7 @@ const requestOrderQuote = z.object({
     )
     .min(1),
   deliveryAddress: z.object({
-    label: z.string().min(1),
+    // label: z.string().min(1),
     phoneNumber: z.string().min(9),
     street: z.string().min(3),
     city: z.string().min(2),

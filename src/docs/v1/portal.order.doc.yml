@@ -78,8 +78,6 @@ paths:
     post:
       summary: Create a new order
       tags: [Portal Order]
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -114,10 +112,8 @@ paths:
                         type: number
                 deliveryAddress:
                   type: object
-                  required: [label, phoneNumber, street, city, state]
+                  required: [phoneNumber, street, city, state]
                   properties:
-                    label:
-                      type: string
                     phoneNumber:
                       type: string
                     street:
