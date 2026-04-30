@@ -68,6 +68,53 @@ components:
         updatedAt:
           type: string
           format: date-time
+    RequestOrderQuoteDto:
+      type: object
+      required: [customer, deliveryAddress]
+      properties:
+        customer:
+          type: object
+          required: [firstName, lastName, email, phoneNumber]
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            gender:
+              type: string
+              enum: [male, female]
+            email:
+              type: string
+            phoneNumber:
+              type: string
+        items:
+          type: array
+          items:
+            type: object
+            required: [name, quantity]
+            properties:
+              name:
+                type: string
+              quantity:
+                type: number
+        deliveryAddress:
+          type: object
+          required: [phoneNumber, street, city, state]
+          properties:
+            phoneNumber:
+              type: string
+            street:
+              type: string
+            city:
+              type: string
+            state:
+              type: string
+            country:
+              type: string
+            postalCode:
+              type: string
+        note:
+          type: string
 
 tags:
   - name: Portal Order
@@ -285,23 +332,17 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [customer, items, deliveryAddress, file]
+              required: [data]
               properties:
-                customer:
-                  type: string
-                  description: JSON stringified customer object containing firstName, lastName, email, phoneNumber
-                items:
-                  type: string
-                  description: JSON stringified array of objects containing name and quantity
-                deliveryAddress:
-                  type: string
-                  description: JSON stringified address object
-                note:
-                  type: string
-                data:
+                file:
                   type: string
                   format: binary
-                  description: Upload quote document (use 'data' as the field name for the document)
+                  description: Upload quote document
+                data:
+                  $ref: "#/components/schemas/RequestOrderQuoteDto"
+            encoding:
+              data:
+                contentType: application/json
       responses:
         "200":
           description: OK

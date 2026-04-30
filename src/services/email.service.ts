@@ -155,7 +155,7 @@ const portalOrderConfirmation = async ({
           (p, i) =>
             `${i + 1}. ${p.name} x${p.quantity} - ${currencyFormatter(p.amount)}`,
         )
-        .join("\n"),
+        .join("<br />"),
       deliveryAddress,
       deliveryMethod,
       subTotal: currencyFormatter(subTotal),
@@ -207,7 +207,7 @@ const adminOrderNotification = async ({
           (p, i) =>
             `${i + 1}. ${p.name} x${p.quantity} - ${currencyFormatter(p.amount)}`,
         )
-        .join("\n"),
+        .join("<br />"),
       deliveryAddress,
       deliveryMethod,
       subTotal: currencyFormatter(subTotal),
@@ -251,13 +251,13 @@ const adminOrderQuoteRequest = async ({
       createdAt,
       products: products
         ? `
-        Requested Items: \n
+        Requested Items: <br />
         ${products
           .map((p, i) => `${i + 1}. ${p.name} x${p.quantity}`)
-          .join("\n")}`
+          .join("<br />")}`
         : "",
-      note: note ? `Aditional Note: \n ${note}` : "",
-      fileUrl: fileUrl ? `Attatched Document: \n ${fileUrl}` : "",
+      note: note ? `Aditional Note: <br /> ${note}` : "",
+      fileUrl: fileUrl ? `Attatched Document: <br /> ${fileUrl}` : "",
       deliveryAddress,
     },
   });
@@ -291,13 +291,13 @@ const portalOrderQuote = async ({
       createdAt,
       products: products
         ? `
-        Requested Items: \n
+        Requested Items: <br />
         ${products
           .map((p, i) => `${i + 1}. ${p.name} x${p.quantity}`)
-          .join("\n")}`
+          .join("<br />")}`
         : "",
-      note: note ? `Aditional Note: \n ${note}` : "",
-      fileUrl: fileUrl ? `Attatched Document: \n ${fileUrl}` : "",
+      note: note ? `Aditional Note: <br /> ${note}` : "",
+      fileUrl: fileUrl ? `Attatched Document: <br /> ${fileUrl}` : "",
       deliveryAddress,
     },
   });
@@ -397,7 +397,7 @@ const portalOrderDelivered = async ({
           (p, i) =>
             `${i + 1}. ${p.name} x${p.quantity} - ${currencyFormatter(p.amount)}`,
         )
-        .join("\n"),
+        .join("<br />"),
     },
   });
 };

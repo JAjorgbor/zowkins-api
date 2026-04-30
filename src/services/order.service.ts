@@ -171,11 +171,11 @@ const requestOrderQuote = async (req: Request) => {
     {
       fields: orderValidation.requestOrderQuote,
       file: customValidation.fileSchema,
-      requireFile: true,
+      requireFile: false,
     },
   );
 
-  const { customer, items, deliveryAddress, note } = fields;
+  const { customer, items = [], deliveryAddress, note } = fields;
   const portalUser = await portalUserService.createPortalUser(customer);
   if (!portalUser?._id)
     throw new ApiError(

@@ -106,9 +106,8 @@ const requestOrderQuote = z.object({
         quantity: z.number().int().min(1),
       }),
     )
-    .min(1),
+    .optional(),
   deliveryAddress: z.object({
-    // label: z.string().min(1),
     phoneNumber: z.string().min(9),
     street: z.string().min(3),
     city: z.string().min(2),
@@ -116,6 +115,7 @@ const requestOrderQuote = z.object({
     country: z.string().optional(),
     postalCode: z.string().optional(),
   }),
+  note: z.string().optional(),
 });
 
 const updateOrderProducts = {

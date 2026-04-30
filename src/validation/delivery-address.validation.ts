@@ -5,7 +5,7 @@ const createDeliveryAddress = {
     userId: z.string(),
   }),
   body: z.object({
-    label: z.string().min(1),
+    // label: z.string().min(1),
     phoneNumber: z.string().min(9),
     street: z.string().min(3),
     city: z.string().min(2),
@@ -21,7 +21,7 @@ const updateDeliveryAddress = {
     addressId: z.string(),
   }),
   body: z.object({
-    label: z.string().min(1).optional(),
+    // label: z.string().min(1).optional(),
     phoneNumber: z.string().min(9).optional(),
     street: z.string().min(3).optional(),
     city: z.string().min(2).optional(),
