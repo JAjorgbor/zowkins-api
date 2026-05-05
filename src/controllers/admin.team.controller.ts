@@ -22,10 +22,10 @@ const updateAdminUserStatus = catchAsync(
   async (req: Request, res: Response) => {
     await adminTeamService.updateAdminUserStatus(
       req.params.id!,
-      req.body.status
+      req.body.status,
     );
     res.status(httpStatus.NO_CONTENT).send();
-  }
+  },
 );
 
 const updateAdminUserRole = catchAsync(async (req: Request, res: Response) => {
@@ -39,7 +39,7 @@ const adminUserInvite = catchAsync(async (req: Request, res: Response) => {
   if (user) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "The email provided already exists!"
+      "The email provided already exists!",
     );
   }
 
@@ -49,7 +49,7 @@ const adminUserInvite = catchAsync(async (req: Request, res: Response) => {
     status: "pending",
   });
   const token = await tokenService.generateAdminUserInviteToken(
-    adminUser as any
+    adminUser as any,
   );
 
   await emailService.adminUserInvite({
@@ -85,7 +85,7 @@ const resendAdminUserInvite = catchAsync(
     });
 
     res.status(httpStatus.NO_CONTENT).send();
-  }
+  },
 );
 
 const updateAdminUser = catchAsync(async (req: Request, res: Response) => {
@@ -99,7 +99,7 @@ const acceptInvite = catchAsync(async (req: Request, res: Response) => {
 
   const { user, tokens } = await adminTeamService.acceptInvite(
     token!,
-    password
+    password,
   );
 
   res.cookie("adminRefreshToken", tokens.refresh?.token!, {

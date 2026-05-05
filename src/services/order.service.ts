@@ -467,7 +467,7 @@ const updateOrder = async (
         if (notifiedAdmins.length) {
           await emailService.adminOrderPaymentConfirmed({
             toEmail: notifiedAdmins.map((admin) => admin.email as string),
-            firstName: portalUser.firstName,
+            customerName: portalUser.firstName + " " + portalUser.lastName,
             orderNumber: order.orderNumber,
             createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
             totalAmount: order.transaction!.totalAmount,

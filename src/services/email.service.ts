@@ -331,13 +331,13 @@ const potalOrderPaymentConfirmed = async ({
 
 const adminOrderPaymentConfirmed = async ({
   toEmail,
-  firstName,
+  customerName,
   orderNumber,
   createdAt,
   totalAmount,
 }: {
   toEmail: string[];
-  firstName: string;
+  customerName: string;
   orderNumber: string;
   createdAt: string;
   totalAmount: number;
@@ -347,7 +347,7 @@ const adminOrderPaymentConfirmed = async ({
     subject: `Payment Confirmed — ${orderNumber}`,
     templateId: 87855,
     variables: {
-      firstName,
+      customerName,
       orderNumber,
       createdAt,
       totalAmount: currencyFormatter(totalAmount),
