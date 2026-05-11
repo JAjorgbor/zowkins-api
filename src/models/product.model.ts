@@ -1,12 +1,12 @@
-import r2 from "@/config/r2-client.js";
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import config from "@/config/config.js";
+import r2 from "@/config/r2-client.js";
+import generateUniqueSlug from "@/utils/generate-unique-slug.js";
+import { DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import mongoose, {
   type HydratedDocument,
   type InferSchemaType,
 } from "mongoose";
 import slugify from "slugify";
-import generateUniqueSlug from "@/utils/generate-unique-slug.js";
 
 const productSchema = new mongoose.Schema(
   {
@@ -31,16 +31,23 @@ const productSchema = new mongoose.Schema(
       ref: "Subcategory",
       required: true,
     },
-    image: {
-      url: {
-        type: String,
-        required: true,
-      },
-      key: {
-        type: String,
-        required: true,
-      },
+    specs: {
+      type: Map,
+      of: String,
+      default: {},
     },
+    images: [
+      {
+        url: {
+          type: String,
+          required: true,
+        },
+        key: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
     price: {
       type: Number,
       required: true,
@@ -62,7 +69,7 @@ const productSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export type Product = InferSchemaType<typeof productSchema>;
@@ -79,7 +86,7 @@ productSchema.pre("validate", async function () {
     this.slug = await generateUniqueSlug(
       mongoose.model("Product"),
       baseSlug,
-      this._id.toString()
+      this._id.toString(),
     );
   }
 });
@@ -88,14 +95,19 @@ productSchema.pre(
   "deleteOne",
   { document: true },
   async function (this: ProductDoc) {
-    if (!this.image?.key) return;
+    if (!this.images?.length) return;
+
+    const keys = this.images.map((image) => image.key);
+
     await r2.send(
-      new DeleteObjectCommand({
+      new DeleteObjectsCommand({
         Bucket: config.r2.bucket!,
-        Key: this.image.key,
-      })
+        Delete: {
+          Objects: keys.map((key) => ({ Key: key })),
+        },
+      }),
     );
-  }
+  },
 );
 
 const Product = mongoose.model<Product>("Product", productSchema);

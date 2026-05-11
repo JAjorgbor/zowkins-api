@@ -20,13 +20,15 @@ paths:
             schema:
               type: object
               required:
-                - file
+                - files
                 - data
               properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Category image
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Category image(s)
                 data:
                   $ref: "#/components/schemas/CreateCategoryDto"
       responses:
@@ -101,10 +103,12 @@ paths:
               required:
                 - data
               properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Updated category image
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Updated category image(s)
                 data:
                   $ref: "#/components/schemas/UpdateCategoryDto"
       responses:

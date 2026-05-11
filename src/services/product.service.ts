@@ -93,12 +93,13 @@ const createProduct = async (req: Request) => {
   const _id = new Types.ObjectId();
 
   let payload: ProductDoc;
-  const { file: image, fields } = await handleAssetUpload(
+  const { files: images, fields } = await handleAssetUpload(
     req,
-    `products/${_id}.jpg`,
+    `products/${_id}`,
     {
       fields: productValidation.createProduct,
       file: customValidation.fileSchema,
+      maxFiles: 6,
       requireFile: true,
       callback: async (parsedFields) => {
         const category = await categoryService.getCategory({
@@ -117,18 +118,20 @@ const createProduct = async (req: Request) => {
         }
       },
     },
+    ".jpg",
   );
-  payload = { ...fields, image, _id };
+  payload = { ...fields, images, _id };
   const product = await Product.create(payload);
   return product;
 };
 const updateProduct = async (productId: string, req: Request) => {
-  const { file: image, fields } = await handleAssetUpload(
+  const { files: images, fields } = await handleAssetUpload(
     req,
-    `products/${productId}.jpg`,
+    `products/${productId}`,
     {
       fields: productValidation.updateProduct,
       file: customValidation.fileSchema,
+      maxFiles: 6,
       requireFile: true,
       callback: async (parsedFields) => {
         const category = await categoryService.getCategory({
@@ -147,9 +150,10 @@ const updateProduct = async (productId: string, req: Request) => {
         }
       },
     },
+    ".jpg",
   );
 
-  let payload: ProductDoc = { ...fields, image };
+  let payload: ProductDoc = { ...fields, images };
 
   const product = await Product.findById(productId);
   if (!product) throw new ApiError(httpStatus.NOT_FOUND, "Product not found");

@@ -20,13 +20,15 @@ paths:
             schema:
               type: object
               required:
-                - file
+                - files
                 - data
               properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Product image
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Product image(s)
                 data:
                   $ref: "#/components/schemas/CreateProductDto"
             encoding:
@@ -136,10 +138,12 @@ paths:
               required:
                 - data
               properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Updated product image
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Updated product image(s)
                 data:
                   $ref: "#/components/schemas/UpdateProductDto"
             encoding:
@@ -202,13 +206,19 @@ components:
         subcategory:
           type: string
           description: Subcategory ID
-        image:
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              key:
+                type: string
+        specs:
           type: object
-          properties:
-            url:
-              type: string
-            key:
-              type: string
+          additionalProperties:
+            type: string
         price:
           type: number
         description:
@@ -252,6 +262,10 @@ components:
         inStock:
           type: boolean
           default: true
+        specs:
+          type: object
+          additionalProperties:
+            type: string
     UpdateProductDto:
       type: object
       properties:
@@ -269,3 +283,7 @@ components:
           type: boolean
         inStock:
           type: boolean
+        specs:
+          type: object
+          additionalProperties:
+            type: string

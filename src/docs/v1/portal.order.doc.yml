@@ -334,10 +334,12 @@ paths:
               type: object
               required: [data]
               properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Upload quote document
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Upload quote document(s)
                 data:
                   $ref: "#/components/schemas/RequestOrderQuoteDto"
             encoding:

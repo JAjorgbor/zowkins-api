@@ -59,13 +59,19 @@ components:
                   type: string
                 name:
                   type: string
-        image:
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              key:
+                type: string
+        specs:
           type: object
-          properties:
-            url:
-              type: string
-            key:
-              type: string
+          additionalProperties:
+            type: string
         price:
           type: number
         description:
