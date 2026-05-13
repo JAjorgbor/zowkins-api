@@ -84,7 +84,7 @@ const createOrder = async ({
     );
     return {
       productId: thisProduct?._id,
-      productImage: thisProduct?.image,
+      productImage: thisProduct?.images[0],
       quantity: item.quantity,
       price: thisProduct?.price,
       amount: thisProduct!.price * item.quantity,
@@ -204,7 +204,7 @@ const requestOrderQuote = async (req: Request) => {
     note,
     orderNumber: order.orderNumber,
     firstName: portalUser.firstName,
-    fileUrl: file?.url,
+    fileUrl: file?.url!,
   });
 
   const notifiedAdmins = await adminTeamService.getAdminUsers({
@@ -224,7 +224,7 @@ const requestOrderQuote = async (req: Request) => {
       customerName: `${portalUser.firstName} ${portalUser.lastName}`,
       customerPhone: portalUser.phoneNumber,
       customerEmail: portalUser.email,
-      fileUrl: file?.url,
+      fileUrl: file?.url!,
     });
   }
   return order;
@@ -546,7 +546,7 @@ const updateOrderProducts = async (
     );
     return {
       productId: thisProduct?._id,
-      productImage: thisProduct?.image,
+      productImage: thisProduct?.images[0],
       quantity: item.quantity,
       price: thisProduct?.price,
       amount: thisProduct!.price * item.quantity,

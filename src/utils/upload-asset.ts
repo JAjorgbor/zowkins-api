@@ -150,7 +150,7 @@ export function handleAssetUpload(
           reject(
             new ApiError(
               httpStatus.BAD_REQUEST,
-              `File exceeds max size of ${maxFileSize} bytes`,
+              `File exceeds max size of ${maxFileSize / 1024 / 1024}MB`,
             ),
           );
           return;
