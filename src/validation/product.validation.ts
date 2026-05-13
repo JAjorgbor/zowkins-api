@@ -9,7 +9,6 @@ const createProduct = z.object({
   description: customValidation.required(z.string(), "Description is required"),
   visible: customValidation.required(z.boolean(), "Visible is required"),
   inStock: customValidation.required(z.boolean(), "In Stock is required"),
-  specs: z.record(z.string(), z.string()).optional(),
 });
 
 const updateProduct = z.object({
@@ -20,7 +19,6 @@ const updateProduct = z.object({
   description: customValidation.required(z.string(), "Description is required"),
   visible: customValidation.required(z.boolean(), "Visible is required"),
   inStock: customValidation.required(z.boolean(), "In Stock is required"),
-  specs: z.record(z.string(), z.string()).optional(),
 });
 
 export default {

@@ -40,7 +40,7 @@ paths:
       tags:
         - Admin User
       summary: Update admin user profile
-      description: Update admin user details and optionally upload avatar(s). Uses multipart/form-data.
+      description: Update admin user details and optionally upload an avatar. Uses multipart/form-data.
       security:
         - bearerAuth: []
       requestBody:
@@ -59,7 +59,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Optional avatar image file(s)
+                  description: "Optional avatar image file(s) (Note: only the first image is saved)"
       responses:
         "200":
           description: OK

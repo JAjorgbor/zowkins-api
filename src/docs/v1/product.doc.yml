@@ -72,6 +72,7 @@ components:
           type: object
           additionalProperties:
             type: string
+          description: Flexible key-value pairs for product specifications. Frontend can define these as preferred.
         price:
           type: number
         description:

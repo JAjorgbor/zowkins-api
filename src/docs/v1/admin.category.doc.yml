@@ -28,7 +28,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Category image(s)
+                  description: Category image
                 data:
                   $ref: "#/components/schemas/CreateCategoryDto"
       responses:
@@ -108,7 +108,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Updated category image(s)
+                  description: Updated category image
                 data:
                   $ref: "#/components/schemas/UpdateCategoryDto"
       responses:

@@ -339,7 +339,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Upload quote document(s)
+                  description: Upload quote document(s) (Note: only the first image is saved)
                 data:
                   $ref: "#/components/schemas/RequestOrderQuoteDto"
             encoding:

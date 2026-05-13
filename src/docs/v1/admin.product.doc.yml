@@ -28,7 +28,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Product image(s)
+                  description: Product images
                 data:
                   $ref: "#/components/schemas/CreateProductDto"
             encoding:
@@ -143,7 +143,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Updated product image(s)
+                  description: Updated product images
                 data:
                   $ref: "#/components/schemas/UpdateProductDto"
             encoding:
@@ -219,6 +219,7 @@ components:
           type: object
           additionalProperties:
             type: string
+          description: Flexible key-value pairs for product specifications. Frontend can define these as preferred.
         price:
           type: number
         description:
@@ -266,6 +267,7 @@ components:
           type: object
           additionalProperties:
             type: string
+          description: Flexible key-value pairs for product specifications. Frontend can define these as preferred.
     UpdateProductDto:
       type: object
       properties:
@@ -287,3 +289,4 @@ components:
           type: object
           additionalProperties:
             type: string
+          description: Flexible key-value pairs for product specifications. Frontend can define these as preferred.

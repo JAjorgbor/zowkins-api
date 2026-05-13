@@ -77,7 +77,10 @@ export function handleAssetUpload(
 
     /** ---------------- FIELD PARSING ---------------- */
     busboy.on("field", (name, value) => {
+      console.log("dfafd");
       if (name === "data") {
+        console.log("data field");
+        console.log(value);
         try {
           Object.assign(fields, JSON.parse(value));
         } catch (err: any) {
@@ -92,6 +95,30 @@ export function handleAssetUpload(
 
     /** ---------------- FILE PARSING ---------------- */
     busboy.on("file", (name, file, info) => {
+      if (name === "data") {
+        let dataBuffer = "";
+
+        file.on("data", (chunk: Buffer) => {
+          dataBuffer += chunk.toString();
+        });
+
+        file.on("end", () => {
+          try {
+            if (dataBuffer) {
+              Object.assign(fields, JSON.parse(dataBuffer));
+            }
+          } catch {
+            reject(
+              new ApiError(
+                httpStatus.BAD_REQUEST,
+                "Invalid JSON in data field",
+              ),
+            );
+          }
+        });
+
+        return;
+      }
       if (name !== "files") {
         file.resume();
         return;
@@ -148,6 +175,7 @@ export function handleAssetUpload(
       try {
         /** FIELD VALIDATION */
         if (validation?.fields) {
+          console.log(fields);
           validateService(validation.fields, fields);
           await validation?.callback?.(fields);
         }
