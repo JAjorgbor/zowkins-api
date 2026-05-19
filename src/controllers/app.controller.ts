@@ -15,9 +15,14 @@ const updateApp = catchAsync(async (req: Request, res: Response) => {
   const app = await appService.updateApp(req.body);
   res.status(200).json({ app });
 });
+const uploadHeroImage = catchAsync(async (req: Request, res: Response) => {
+  const app = await appService.uploadHeroImage(req);
+  res.status(200).json({ app });
+});
 
 export default {
   getApp,
   updateApp,
   createApp,
+  uploadHeroImage,
 };

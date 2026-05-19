@@ -116,6 +116,46 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /app/upload-hero-image:
+    post:
+      tags:
+        - App
+      summary: Upload application hero image
+      description: Uploads the application hero image. Uses multipart/form-data.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: App hero image file (Only the first image is saved)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/App"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
 components:
   schemas:
     AppInput:
@@ -246,6 +286,13 @@ components:
               type: string
             slug:
               type: string
+            heroImage:
+              type: object
+              properties:
+                url:
+                  type: string
+                key:
+                  type: string
             createdAt:
               type: string
               format: date-time
