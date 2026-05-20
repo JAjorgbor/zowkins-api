@@ -72,11 +72,27 @@ export function handleAssetUpload(
   return new Promise((resolve, reject) => {
     const busboy = Busboy({ headers: req.headers });
 
+    let isSettled = false;
+    const rejectPromise = (err: any) => {
+      if (!isSettled) {
+        isSettled = true;
+        reject(err);
+      }
+    };
+    const resolvePromise = (val: any) => {
+      if (!isSettled) {
+        isSettled = true;
+        resolve(val);
+      }
+    };
+
     const fields: Record<string, any> = {};
     const files: UploadedFile[] = [];
+    let fileCount = 0;
 
     /** ---------------- FIELD PARSING ---------------- */
     busboy.on("field", (name, value) => {
+      if (isSettled) return;
       console.log("dfafd");
       if (name === "data") {
         console.log("data field");
@@ -84,7 +100,7 @@ export function handleAssetUpload(
         try {
           Object.assign(fields, JSON.parse(value));
         } catch (err: any) {
-          reject(
+          rejectPromise(
             new ApiError(httpStatus.BAD_REQUEST, "Invalid JSON in data field"),
           );
         }
@@ -95,20 +111,30 @@ export function handleAssetUpload(
 
     /** ---------------- FILE PARSING ---------------- */
     busboy.on("file", (name, file, info) => {
+      if (isSettled) {
+        file.resume();
+        return;
+      }
+
       if (name === "data") {
         let dataBuffer = "";
 
         file.on("data", (chunk: Buffer) => {
+          if (isSettled) {
+            file.resume();
+            return;
+          }
           dataBuffer += chunk.toString();
         });
 
         file.on("end", () => {
+          if (isSettled) return;
           try {
             if (dataBuffer) {
               Object.assign(fields, JSON.parse(dataBuffer));
             }
           } catch {
-            reject(
+            rejectPromise(
               new ApiError(
                 httpStatus.BAD_REQUEST,
                 "Invalid JSON in data field",
@@ -127,9 +153,10 @@ export function handleAssetUpload(
       const maxFiles = validation?.maxFiles ?? 1;
       const maxFileSize = validation?.maxFileSize ?? 10485760; // 10MB
 
-      if (files.length >= maxFiles) {
+      fileCount++;
+      if (fileCount > maxFiles) {
         file.resume();
-        reject(
+        rejectPromise(
           new ApiError(
             httpStatus.BAD_REQUEST,
             `Max ${maxFiles} file(s) allowed`,
@@ -142,12 +169,16 @@ export function handleAssetUpload(
       let size = 0;
 
       file.on("data", (chunk: Buffer) => {
+        if (isSettled) {
+          file.resume();
+          return;
+        }
         size += chunk.length;
 
         /** ---------------- SIZE VALIDATION ---------------- */
         if (size > maxFileSize) {
           file.resume();
-          reject(
+          rejectPromise(
             new ApiError(
               httpStatus.BAD_REQUEST,
               `File exceeds max size of ${maxFileSize / 1024 / 1024}MB`,
@@ -160,6 +191,7 @@ export function handleAssetUpload(
       });
 
       file.on("end", () => {
+        if (isSettled) return;
         files.push({
           buffer: Buffer.concat(chunks),
           size,
@@ -169,9 +201,10 @@ export function handleAssetUpload(
       });
     });
 
-    busboy.on("error", reject);
+    busboy.on("error", rejectPromise);
 
     busboy.on("finish", async () => {
+      if (isSettled) return;
       try {
         /** FIELD VALIDATION */
         if (validation?.fields) {
@@ -187,7 +220,7 @@ export function handleAssetUpload(
 
         /** EMPTY CASE */
         if (files.length === 0) {
-          return resolve({
+          return resolvePromise({
             file: null,
             files: [],
             fields,
@@ -216,13 +249,13 @@ export function handleAssetUpload(
           ),
         );
 
-        resolve({
+        resolvePromise({
           file: uploadedFiles[0] ?? null,
           files: uploadedFiles,
           fields,
         });
       } catch (err) {
-        reject(err);
+        rejectPromise(err);
       }
     });
 

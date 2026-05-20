@@ -9,14 +9,18 @@ const appSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    heroImage: {
-      url: {
-        type: String,
+    heroImages: [
+      {
+        _id: false,
+
+        url: {
+          type: String,
+        },
+        key: {
+          type: String,
+        },
       },
-      key: {
-        type: String,
-      },
-    },
+    ],
     address: {
       type: String,
       required: true,

@@ -35,13 +35,13 @@ const uploadHeroImage = async (req: Request) => {
     throw new Error("App not found");
   }
 
-  const { file: image } = await handleAssetUpload(req, `app/hero-image.jpg`, {
+  const { files: images } = await handleAssetUpload(req, `app/hero-image.jpg`, {
     file: customValidation.fileSchema,
-    maxFiles: 1,
+    maxFiles: 3,
     requireFile: true,
   });
 
-  app.set({ heroImage: image });
+  app.set({ heroImages: images });
   await app.save();
   return app;
 };
