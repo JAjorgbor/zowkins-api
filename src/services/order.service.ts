@@ -15,17 +15,22 @@ import type { Request } from "express";
 import httpStatus from "http-status";
 import { Types } from "mongoose";
 import roles from "@/config/roles.js";
+import paystack from "@/config/paystack.js";
 
 const createOrder = async ({
   customer,
   items,
   deliveryAddress,
   deliveryMethod,
+  callbackUrl,
+  includePayment = false,
 }: {
   customer: string;
   items: { productId: string; quantity: number }[];
   deliveryAddress: any;
   deliveryMethod: string;
+  callbackUrl?: string;
+  includePayment?: boolean;
 }) => {
   const portalUser = await portalUserService.getPortalUser({ _id: customer });
   if (!portalUser)
@@ -160,7 +165,27 @@ const createOrder = async ({
       customerName: `${portalUser.firstName} ${portalUser.lastName}`,
     });
   }
-  return order;
+
+  let initializePaymentResponse;
+  if (includePayment) {
+    initializePaymentResponse = await paystack.initializeTransaction({
+      amount: totalAmount,
+      email: portalUser.email,
+      callbackUrl: callbackUrl!,
+      reference: order.orderNumber,
+      metadata: {
+        orderId: order._id.toString(),
+        type: "order",
+      },
+    });
+    order.transaction!.ref = initializePaymentResponse.reference;
+    await order.save();
+  }
+
+  return {
+    order,
+    paymentUrl: initializePaymentResponse?.authorization_url,
+  };
 };
 const requestOrderQuote = async (req: Request) => {
   const _id = new Types.ObjectId();

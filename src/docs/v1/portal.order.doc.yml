@@ -131,7 +131,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [customer, items, deliveryAddress, deliveryMethod]
+              required: [customer, items, deliveryAddress, deliveryMethod, callbackUrl]
               properties:
                 customer:
                   type: object
@@ -175,9 +175,12 @@ paths:
                       type: string
                 deliveryMethod:
                   type: string
+                callbackUrl:
+                  type: string
+                  format: uri
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           content:
             application/json:
               schema:
@@ -187,6 +190,9 @@ paths:
                     type: boolean
                   order:
                     $ref: "#/components/schemas/Order"
+                  paymentUrl:
+                    type: string
+                    format: uri
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

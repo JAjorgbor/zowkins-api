@@ -15,13 +15,14 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
   //   deliveryAddress: string;
   //   deliveryMethod: string;
   // };
-  const order = await orderService.createOrder({
+  const { order, paymentUrl } = await orderService.createOrder({
     customer: user?._id?.toString() as string,
     items,
     deliveryAddress,
     deliveryMethod,
+    includePayment: true,
   });
-  res.status(httpStatus.OK).json({ success: true, order });
+  res.status(httpStatus.OK).json({ success: true, order, paymentUrl });
 });
 const requestOrderQuote = catchAsync(async (req: Request, res: Response) => {
   const order = await orderService.requestOrderQuote(req);

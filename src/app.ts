@@ -88,7 +88,13 @@ app.use(cors(corsOptions));
 
 /* Middleware (after CORS) */
 app.use(logger("dev"));
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf.toString("utf8");
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 

@@ -70,9 +70,9 @@ const orderSchema = new mongoose.Schema(
     ],
 
     transaction: {
-      //   ref: {
-      //     type: String,
-      //   },
+      ref: {
+        type: String,
+      },
       discountCode: {
         type: String,
       },
