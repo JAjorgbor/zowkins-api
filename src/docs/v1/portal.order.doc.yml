@@ -189,8 +189,6 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  order:
-                    $ref: "#/components/schemas/Order"
                   paymentUrl:
                     type: string
                     format: uri
