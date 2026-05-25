@@ -16,7 +16,6 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(500);
     }
 
-    // 1. Verify signature using raw body
     const hash = crypto
       .createHmac("sha512", secret)
       .update(rawBody)
@@ -40,7 +39,6 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
     const metadata = data?.metadata ?? {};
     const orderId = metadata?.orderId;
 
-    // 3. STRICT validation (do NOT silently accept invalid payloads)
     if (!reference || !orderId) {
       console.error("Invalid Paystack payload (missing fields):", {
         reference,
@@ -48,11 +46,9 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
         payload,
       });
 
-      // return 500 so Paystack retries instead of silently dropping
       return res.sendStatus(500);
     }
 
-    // 4. Fetch order
     const order = await orderService.getOrder(orderId);
 
     if (!order) {
@@ -63,14 +59,12 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(200);
     }
 
-    // 5. Verify transaction (still keeping it as requested)
     const verification = await paystack.verifyTransaction({ reference });
 
     if (!verification || verification.status !== "success") {
       return res.sendStatus(400);
     }
 
-    // 6. Validate amount
     const expectedAmount = Math.round(
       Number(order.transaction!.totalAmount) * 100,
     );
@@ -84,7 +78,6 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(400);
     }
 
-    // 7. Update order
     await orderService.updateOrder(orderId, {
       paymentStatus: "paid",
     });
