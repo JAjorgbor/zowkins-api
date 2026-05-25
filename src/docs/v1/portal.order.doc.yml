@@ -131,7 +131,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [customer, items, deliveryAddress, deliveryMethod, callbackUrl]
+              required:
+                [customer, items, deliveryAddress, deliveryMethod, callbackUrl]
               properties:
                 customer:
                   type: object
@@ -345,7 +346,7 @@ paths:
                   items:
                     type: string
                     format: binary
-                  description: Upload quote document(s) (Note: only the first image is saved)
+                  description: "Upload quote document(s) (Note: only the first image is saved)"
                 data:
                   $ref: "#/components/schemas/RequestOrderQuoteDto"
             encoding:
