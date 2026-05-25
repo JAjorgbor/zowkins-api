@@ -20,6 +20,8 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
     return res.status(401).send("Invalid signature");
   }
 
+  console.log("body", req.body);
+
   const event = req.body.event;
   const data = req.body.data;
   const metadata = data.metadata;
