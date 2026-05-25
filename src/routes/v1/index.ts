@@ -22,6 +22,7 @@ import adminBankRoute from "@/routes/v1/admin.bank.route.js";
 import express, { Router } from "express";
 import swaggerUi from "swagger-ui-express";
 import portalBankRoute from "@/routes/v1/portal.bank.route.js";
+import paymentRoute from "@/routes/v1/payment.route.js";
 
 const router: Router = express.Router();
 
@@ -29,6 +30,10 @@ const defaultRoutes = [
   {
     path: "/app",
     route: appRoute,
+  },
+  {
+    path: "/payments",
+    route: paymentRoute,
   },
   {
     path: "/test",
