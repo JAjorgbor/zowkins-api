@@ -132,6 +132,7 @@ const verifyTransaction = async ({
 }: {
   reference: string;
 }): Promise<VerifyTransactionResponse> => {
+  console.log("za reference", reference);
   const response = await paystack.transaction.verify(reference);
   return response.data;
 };

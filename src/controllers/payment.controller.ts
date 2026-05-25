@@ -26,15 +26,7 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.status(401).send("Invalid signature");
     }
 
-    // 2. Parse ONLY raw body
-    let payload: any;
-
-    try {
-      payload = JSON.parse(rawBody);
-    } catch (err) {
-      console.error("Invalid JSON webhook:", rawBody);
-      return res.sendStatus(500);
-    }
+    const payload = req.body;
 
     const event = payload?.event;
 
@@ -44,7 +36,7 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
 
     const data = payload?.data ?? {};
 
-    const reference = data?.transaction_reference;
+    const reference = data?.reference;
     const metadata = data?.metadata ?? {};
     const orderId = metadata?.orderId;
 
