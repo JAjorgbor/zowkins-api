@@ -11,6 +11,7 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
 
     const rawBody = (req as any).rawBody;
 
+    // 1. Verify signature using RAW body (source of truth)
     const hash = crypto
       .createHmac("sha512", secret)
       .update(rawBody)
@@ -20,22 +21,29 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.status(401).send("Invalid signature");
     }
 
-    const payload = req.body;
-    const event = payload?.event;
-    const data = payload?.data;
+    // 2. Parse ONLY raw body
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (err) {
+      console.error("Invalid webhook JSON:", rawBody);
+      return res.sendStatus(200);
+    }
 
+    const event = payload?.event;
     if (event !== "charge.success") {
       return res.sendStatus(200);
     }
 
+    const data = payload?.data ?? {};
+    const metadata = data?.metadata;
+
     const reference = data?.reference;
 
     if (!reference || typeof reference !== "string") {
-      console.log("Missing reference in webhook:", payload);
+      console.error("Missing reference in webhook:", payload);
       return res.sendStatus(200);
     }
-
-    const metadata = data?.metadata;
 
     if (!metadata || metadata.type !== "order") {
       return res.sendStatus(200);
@@ -47,6 +55,7 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(200);
     }
 
+    // 3. Verify transaction (still kept as requested)
     const verification = await paystack.verifyTransaction({ reference });
 
     if (!verification || verification.status !== "success") {
