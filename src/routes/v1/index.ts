@@ -32,7 +32,7 @@ const defaultRoutes = [
     route: appRoute,
   },
   {
-    path: "/payments",
+    path: "/payment",
     route: paymentRoute,
   },
   {
