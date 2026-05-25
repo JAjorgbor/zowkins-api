@@ -44,7 +44,7 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
 
     const data = payload?.data ?? {};
 
-    const reference = data?.reference;
+    const reference = data?.transaction_reference;
     const metadata = data?.metadata ?? {};
     const orderId = metadata?.orderId;
 
