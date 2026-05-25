@@ -11,7 +11,12 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
 
     const rawBody = (req as any).rawBody;
 
-    // 1. Verify signature using RAW body (source of truth)
+    if (!rawBody) {
+      console.error("Missing rawBody");
+      return res.sendStatus(500);
+    }
+
+    // 1. Verify signature using raw body
     const hash = crypto
       .createHmac("sha512", secret)
       .update(rawBody)
@@ -23,58 +28,72 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
 
     // 2. Parse ONLY raw body
     let payload: any;
+
     try {
       payload = JSON.parse(rawBody);
     } catch (err) {
-      console.error("Invalid webhook JSON:", rawBody);
-      return res.sendStatus(200);
+      console.error("Invalid JSON webhook:", rawBody);
+      return res.sendStatus(500);
     }
 
     const event = payload?.event;
+
     if (event !== "charge.success") {
       return res.sendStatus(200);
     }
 
     const data = payload?.data ?? {};
-    const metadata = data?.metadata;
 
     const reference = data?.reference;
+    const metadata = data?.metadata ?? {};
+    const orderId = metadata?.orderId;
 
-    if (!reference || typeof reference !== "string") {
-      console.error("Missing reference in webhook:", payload);
+    // 3. STRICT validation (do NOT silently accept invalid payloads)
+    if (!reference || !orderId) {
+      console.error("Invalid Paystack payload (missing fields):", {
+        reference,
+        orderId,
+        payload,
+      });
+
+      // return 500 so Paystack retries instead of silently dropping
+      return res.sendStatus(500);
+    }
+
+    // 4. Fetch order
+    const order = await orderService.getOrder(orderId);
+
+    if (!order) {
       return res.sendStatus(200);
     }
 
-    if (!metadata || metadata.type !== "order") {
+    if (order.paymentStatus === "paid") {
       return res.sendStatus(200);
     }
 
-    const order = await orderService.getOrder(metadata.orderId);
-
-    if (!order || order.paymentStatus === "paid") {
-      return res.sendStatus(200);
-    }
-
-    // 3. Verify transaction (still kept as requested)
+    // 5. Verify transaction (still keeping it as requested)
     const verification = await paystack.verifyTransaction({ reference });
 
     if (!verification || verification.status !== "success") {
       return res.sendStatus(400);
     }
 
+    // 6. Validate amount
     const expectedAmount = Math.round(
       Number(order.transaction!.totalAmount) * 100,
     );
 
     if (verification.amount !== expectedAmount) {
-      console.log("Amount mismatch:", {
+      console.error("Amount mismatch:", {
         verificationAmount: verification.amount,
         expectedAmount,
       });
+
       return res.sendStatus(400);
     }
 
-    await orderService.updateOrder(metadata.orderId, {
+    // 7. Update order
+    await orderService.updateOrder(orderId, {
       paymentStatus: "paid",
     });
 
