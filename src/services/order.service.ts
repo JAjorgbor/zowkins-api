@@ -252,15 +252,11 @@ const generatePaymentLink = async (orderId: string, callbackUrl: string) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       "callbackUrl is required when generating paymentLink",
     );
-  const { transaction, customer } = order;
-
-  const portalUser = await portalUserService.getPortalUser({
-    _id: customer.toString(),
-  });
+  const { transaction, customer } = order as any;
 
   const initializePaymentResponse = await paystack.initializeTransaction({
     amount: transaction?.totalAmount!,
-    email: portalUser?.email!,
+    email: customer?.email!,
     callbackUrl: callbackUrl!,
     metadata: {
       orderId: order._id.toString(),
