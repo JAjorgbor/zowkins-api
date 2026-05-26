@@ -44,4 +44,11 @@ router
     orderController.updateOrderProducts,
   );
 
+router.post(
+  "/:orderId/generate-payment-link",
+  auth("manageOrders"),
+  validate(orderValidation.generatePaymentLink),
+  orderController.generatePaymentLink,
+);
+
 export default router;

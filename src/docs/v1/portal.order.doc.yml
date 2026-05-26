@@ -131,8 +131,7 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                [customer, items, deliveryAddress, deliveryMethod, callbackUrl]
+              required: [customer, items, deliveryAddress, deliveryMethod]
               properties:
                 customer:
                   type: object
@@ -179,6 +178,8 @@ paths:
                 callbackUrl:
                   type: string
                   format: uri
+                generatePaymentLink:
+                  type: boolean
       responses:
         "200":
           description: OK
@@ -189,7 +190,7 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  paymentUrl:
+                  paymentLink:
                     type: string
                     format: uri
         "400":

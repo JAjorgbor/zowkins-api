@@ -4,6 +4,8 @@ import type { Request, Response } from "express";
 import orderService from "@/services/order.service.js";
 import paystack from "@/config/paystack.js";
 
+type PaymentStatus = "pending" | "paid" | "failed" | "abandoned" | "reversed";
+
 const handlePaystackWebhook = async (req: Request, res: Response) => {
   try {
     const secret = config.paystack.secretKey;
@@ -16,6 +18,7 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(500);
     }
 
+    // Verify signature
     const hash = crypto
       .createHmac("sha512", secret)
       .update(rawBody)
@@ -25,62 +28,83 @@ const handlePaystackWebhook = async (req: Request, res: Response) => {
       return res.status(401).send("Invalid signature");
     }
 
-    const payload = req.body;
+    const payload = JSON.parse(rawBody);
 
     const event = payload?.event;
-
-    if (event !== "charge.success") {
-      return res.sendStatus(200);
-    }
-
     const data = payload?.data ?? {};
-
     const reference = data?.reference;
     const metadata = data?.metadata ?? {};
     const orderId = metadata?.orderId;
 
     if (!reference || !orderId) {
-      console.error("Invalid Paystack payload (missing fields):", {
-        reference,
-        orderId,
-        payload,
-      });
-
-      return res.sendStatus(500);
+      console.error("Invalid Paystack payload:", payload);
+      return res.sendStatus(200);
     }
 
     const order = await orderService.getOrder(orderId);
 
-    if (!order) {
-      return res.sendStatus(200);
-    }
+    if (!order) return res.sendStatus(200);
 
+    // Prevent duplicate processing
     if (order.paymentStatus === "paid") {
       return res.sendStatus(200);
     }
 
-    const verification = await paystack.verifyTransaction({ reference });
+    let newStatus: PaymentStatus = "pending";
 
-    if (!verification || verification.status !== "success") {
-      return res.sendStatus(400);
+    switch (event) {
+      case "charge.success": {
+        const verification = await paystack.verifyTransaction({ reference });
+
+        if (!verification || verification.status !== "success") {
+          newStatus = "failed";
+          break;
+        }
+
+        const expectedAmount = Math.round(
+          Number(order.transaction!.totalAmount) * 100,
+        );
+
+        if (verification.amount !== expectedAmount) {
+          console.error("Amount mismatch:", {
+            verificationAmount: verification.amount,
+            expectedAmount,
+          });
+
+          newStatus = "failed";
+          break;
+        }
+
+        newStatus = "paid";
+        break;
+      }
+
+      case "charge.failed": {
+        newStatus = "failed";
+        break;
+      }
+
+      case "charge.abandoned": {
+        newStatus = "abandoned";
+        break;
+      }
+
+      case "transaction.reversed": {
+        newStatus = "reversed";
+        break;
+      }
+
+      default: {
+        return res.sendStatus(200);
+      }
     }
 
-    const expectedAmount = Math.round(
-      Number(order.transaction!.totalAmount) * 100,
-    );
-
-    if (verification.amount !== expectedAmount) {
-      console.error("Amount mismatch:", {
-        verificationAmount: verification.amount,
-        expectedAmount,
+    // Only update if status actually changes or is meaningful
+    if (newStatus && newStatus !== order.paymentStatus) {
+      await orderService.updateOrder(orderId, {
+        paymentStatus: newStatus,
       });
-
-      return res.sendStatus(400);
     }
-
-    await orderService.updateOrder(orderId, {
-      paymentStatus: "paid",
-    });
 
     return res.sendStatus(200);
   } catch (err) {

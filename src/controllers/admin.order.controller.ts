@@ -23,6 +23,16 @@ const getOrders = catchAsync(async (req: Request, res: Response) => {
   res.status(httpStatus.OK).json({ success: true, orders });
 });
 
+const generatePaymentLink = catchAsync(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  const { callbackUrl } = req.body;
+  const paymentLink = await orderService.generatePaymentLink(
+    orderId as string,
+    callbackUrl as string,
+  );
+  res.status(httpStatus.OK).json({ success: true, paymentLink });
+});
+
 const getOrder = catchAsync(async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const order = await orderService.getOrder(orderId as string);
@@ -62,4 +72,5 @@ export default {
   updateOrderStatus,
   updateOrderProducts,
   getGeneralOrdersStats,
+  generatePaymentLink,
 };

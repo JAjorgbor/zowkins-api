@@ -85,7 +85,8 @@ const createOrder = {
       postalCode: z.string().optional(),
     }),
     deliveryMethod: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Method ID"),
-    callbackUrl: customValidation.required(z.url()),
+    callbackUrl: z.url().optional(),
+    generatePaymentLink: z.boolean().optional(),
   }),
 };
 const requestOrderQuote = z.object({
@@ -119,6 +120,15 @@ const requestOrderQuote = z.object({
   note: z.string().optional(),
 });
 
+const generatePaymentLink = {
+  params: z.object({
+    orderId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Order ID"),
+  }),
+  body: z.object({
+    callbackUrl: customValidation.required(z.url(), "Callback URL is required"),
+  }),
+};
+
 const updateOrderProducts = {
   params: z.object({
     orderId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Order ID"),
@@ -146,4 +156,5 @@ export default {
   createOrder,
   updateOrderProducts,
   requestOrderQuote,
+  generatePaymentLink,
 };

@@ -221,6 +221,46 @@ paths:
                   order:
                     $ref: "#/components/schemas/Order"
 
+  /admin/orders/{orderId}/generate-payment-link:
+    post:
+      summary: Generate payment link for an order
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                callbackUrl:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  paymentLink:
+                    type: string
+                    example: "https://example.com/payment/123456789"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /admin/orders/{orderId}/products:
     patch:
       summary: Update order products

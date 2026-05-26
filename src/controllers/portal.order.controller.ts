@@ -6,8 +6,14 @@ import { type Request, type Response } from "express";
 import ApiError from "@/utils/api-error.js";
 
 const createOrder = catchAsync(async (req: Request, res: Response) => {
-  const { customer, items, deliveryAddress, deliveryMethod, callbackUrl } =
-    req.body;
+  const {
+    customer,
+    items,
+    deliveryAddress,
+    deliveryMethod,
+    callbackUrl,
+    generatePaymentLink,
+  } = req.body;
   const user = await portalUserService.createPortalUser(customer);
 
   // const { customer, items, deliveryAddress, deliveryMethod } = req.body as {
@@ -16,15 +22,15 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
   //   deliveryAddress: string;
   //   deliveryMethod: string;
   // };
-  const { paymentUrl } = await orderService.createOrder({
+  const { paymentLink } = await orderService.createOrder({
     customer: user?._id?.toString() as string,
     items,
     deliveryAddress,
     deliveryMethod,
-    includePayment: true,
     callbackUrl,
+    includePayment: generatePaymentLink,
   });
-  res.status(httpStatus.OK).json({ success: true, paymentUrl });
+  res.status(httpStatus.OK).json({ success: true, paymentLink });
 });
 const requestOrderQuote = catchAsync(async (req: Request, res: Response) => {
   const order = await orderService.requestOrderQuote(req);

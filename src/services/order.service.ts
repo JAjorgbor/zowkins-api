@@ -166,25 +166,14 @@ const createOrder = async ({
     });
   }
 
-  let initializePaymentResponse;
+  let paymentLink;
   if (includePayment) {
-    initializePaymentResponse = await paystack.initializeTransaction({
-      amount: totalAmount,
-      email: portalUser.email,
-      callbackUrl: callbackUrl!,
-      reference: order.orderNumber,
-      metadata: {
-        orderId: order._id.toString(),
-        type: "order",
-      },
-    });
-    order.transaction!.ref = initializePaymentResponse.reference;
-    await order.save();
+    paymentLink = await generatePaymentLink(order._id.toString(), callbackUrl!);
   }
 
   return {
     order,
-    paymentUrl: initializePaymentResponse?.authorization_url,
+    paymentLink,
   };
 };
 const requestOrderQuote = async (req: Request) => {
@@ -253,6 +242,34 @@ const requestOrderQuote = async (req: Request) => {
     });
   }
   return order;
+};
+
+const generatePaymentLink = async (orderId: string, callbackUrl: string) => {
+  const order = await getOrder(orderId);
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
+  if (!callbackUrl)
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "callbackUrl is required when generating paymentLink",
+    );
+  const { transaction, customer } = order;
+
+  const portalUser = await portalUserService.getPortalUser({
+    _id: customer.toString(),
+  });
+
+  const initializePaymentResponse = await paystack.initializeTransaction({
+    amount: transaction?.totalAmount!,
+    email: portalUser?.email!,
+    callbackUrl: callbackUrl!,
+    metadata: {
+      orderId: order._id.toString(),
+      type: "order",
+    },
+  });
+  order.transaction!.ref = initializePaymentResponse.reference;
+  await order.save();
+  return initializePaymentResponse.authorization_url;
 };
 
 const getPortalUserOrders = async (portalUserId: string) => {
@@ -615,4 +632,5 @@ export default {
   getPortalUserOrdersStats,
   getGeneralOrdersStats,
   requestOrderQuote,
+  generatePaymentLink,
 };
