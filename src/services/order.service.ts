@@ -254,8 +254,9 @@ const generatePaymentLink = async (orderId: string, callbackUrl: string) => {
       httpStatus.INTERNAL_SERVER_ERROR,
       "callbackUrl is required when generating paymentLink",
     );
+  if (order.paymentStatus == "paid")
+    throw new ApiError(httpStatus.BAD_REQUEST, "Order is already paid");
   const { transaction, customer } = order as any;
-
   const initializePaymentResponse = await paystack.initializeTransaction({
     amount: transaction?.totalAmount!,
     email: customer?.email!,
