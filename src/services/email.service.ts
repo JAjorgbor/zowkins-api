@@ -130,6 +130,7 @@ const portalOrderConfirmation = async ({
   subTotal,
   deliveryFee,
   totalAmount,
+  paymentMade,
 }: {
   toEmail: string;
   firstName: string;
@@ -141,11 +142,12 @@ const portalOrderConfirmation = async ({
   subTotal: number;
   deliveryFee: number;
   totalAmount: number;
+  paymentMade: boolean;
 }) => {
   await sendEmailWithRetry({
     toEmail,
     subject: `Your Order Has Been Received — ${orderNumber}`,
-    templateId: 87798,
+    templateId: paymentMade ? 93250 : 87798,
     variables: {
       firstName,
       orderNumber,
@@ -178,6 +180,7 @@ const adminOrderNotification = async ({
   subTotal,
   deliveryFee,
   totalAmount,
+  paymentMade,
 }: {
   toEmail: string[];
   customerName: string;
@@ -191,11 +194,12 @@ const adminOrderNotification = async ({
   subTotal: number;
   deliveryFee: number;
   totalAmount: number;
+  paymentMade: boolean;
 }) => {
   await sendEmailWithRetry({
     toEmail,
     subject: `New Order Received — ${orderNumber}`,
-    templateId: 87842,
+    templateId: paymentMade ? 93341 : 87842,
     variables: {
       customerName,
       customerPhone,

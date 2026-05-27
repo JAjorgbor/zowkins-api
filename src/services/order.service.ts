@@ -140,6 +140,7 @@ const createOrder = async ({
     deliveryMethod: deliveryMethodDetails.name,
     orderNumber: order.orderNumber,
     firstName: portalUser.firstName,
+    paymentMade: includePayment,
   });
 
   const notifiedAdmins = await adminTeamService.getAdminUsers({
@@ -163,6 +164,7 @@ const createOrder = async ({
       deliveryMethod: deliveryMethodDetails.name,
       orderNumber: order.orderNumber,
       customerName: `${portalUser.firstName} ${portalUser.lastName}`,
+      paymentMade: includePayment,
     });
   }
 
