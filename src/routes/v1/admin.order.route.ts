@@ -15,7 +15,7 @@ router
   )
   .post(
     auth("manageOrders"),
-    validate(orderValidation.createOrder),
+    validate(orderValidation.adminCreateOrder),
     orderController.createOrder,
   );
 

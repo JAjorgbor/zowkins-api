@@ -89,6 +89,33 @@ const createOrder = {
     generatePaymentLink: z.boolean().optional(),
   }),
 };
+const adminCreateOrder = {
+  body: z.object({
+    customer: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Customer ID"),
+    items: z
+      .array(
+        z.object({
+          productId: z
+            .string()
+            .regex(/^[0-9a-fA-F]{24}$/, "Invalid Product ID"),
+          quantity: z.number().int().min(1),
+        }),
+      )
+      .min(1),
+    deliveryAddress: z.object({
+      // label: z.string().min(1),
+      phoneNumber: z.string().min(9),
+      street: z.string().min(3),
+      city: z.string().min(2),
+      state: z.string().min(2),
+      country: z.string().optional(),
+      postalCode: z.string().optional(),
+    }),
+    deliveryMethod: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Method ID"),
+    callbackUrl: z.url().optional(),
+    generatePaymentLink: z.boolean().optional(),
+  }),
+};
 const requestOrderQuote = z.object({
   customer: z.object({
     firstName: customValidation.required(z.string(), "First name is required"),
@@ -157,4 +184,5 @@ export default {
   updateOrderProducts,
   requestOrderQuote,
   generatePaymentLink,
+  adminCreateOrder,
 };
