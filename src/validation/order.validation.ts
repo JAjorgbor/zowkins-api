@@ -91,7 +91,25 @@ const createOrder = {
 };
 const adminCreateOrder = {
   body: z.object({
-    customer: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Customer ID"),
+    customer: z.union([
+      z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Customer ID"),
+      z.object({
+        firstName: customValidation.required(
+          z.string(),
+          "First name is required",
+        ),
+        lastName: customValidation.required(
+          z.string(),
+          "Last name is required",
+        ),
+        gender: z.enum(["male", "female"]).optional(),
+        email: customValidation.email,
+        phoneNumber: customValidation.required(
+          z.string(),
+          "Phone number is required",
+        ),
+      }),
+    ]),
     items: z
       .array(
         z.object({

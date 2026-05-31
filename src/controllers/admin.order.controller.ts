@@ -1,4 +1,5 @@
 import orderService from "@/services/order.service.js";
+import portalUserService from "@/services/portal.user.service.js";
 import ApiError from "@/utils/api-error.js";
 import catchAsync from "@/utils/catch-async.js";
 import pick from "@/utils/pick.js";
@@ -6,7 +7,14 @@ import { type Request, type Response } from "express";
 import httpStatus from "http-status";
 
 const createOrder = catchAsync(async (req: Request, res: Response) => {
-  const order = await orderService.createOrder(req.body);
+  const { customer } = req.body;
+  let user;
+  let payload = req.body;
+  if (typeof customer === "object") {
+    user = await portalUserService.createPortalUser(customer);
+    payload = { ...payload, customer: user!._id.toString() };
+  }
+  const order = await orderService.createOrder(payload);
   res.status(httpStatus.CREATED).json({ success: true, order });
 });
 

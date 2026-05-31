@@ -23,8 +23,24 @@ paths:
               required: [customer, items, deliveryAddress, deliveryMethod]
               properties:
                 customer:
-                  type: string
-                  description: Customer ID
+                  oneOf:
+                  - type: string
+                    pattern: '^[0-9a-fA-F]{24}$'
+                    description: Existing customer ID
+                  - type: object
+                    required: [firstName, lastName, email, phoneNumber]
+                    properties:
+                      firstName:
+                        type: string
+                      lastName:
+                        type: string
+                      gender:
+                        type: string
+                        enum: [male, female]
+                      email:
+                        type: string
+                      phoneNumber:
+                        type: string
                 items:
                   type: array
                   items:
