@@ -27,6 +27,8 @@ paths:
                   - type: string
                     pattern: '^[0-9a-fA-F]{24}$'
                     description: Existing customer ID
+                    example: "683b2c7b4e7a9f1d3a5b8c2d"
+
                   - type: object
                     required: [firstName, lastName, email, phoneNumber]
                     properties:
@@ -41,6 +43,12 @@ paths:
                         type: string
                       phoneNumber:
                         type: string
+                    example:
+                      firstName: John
+                      lastName: Doe
+                      gender: male
+                      email: john.doe@example.com
+                      phoneNumber: "08012345678"
                 items:
                   type: array
                   items:
