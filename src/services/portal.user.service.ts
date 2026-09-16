@@ -36,9 +36,11 @@ const getPortalUsers = async (filterParams: any = {}) => {
 };
 
 const createPortalUser = async (userBody: any) => {
-  if (await (PortalUser as any).isEmailTaken(userBody.email)) {
-    const existingUser = await PortalUser.findOne({ email: userBody.email });
-    return existingUser;
+  const existingUser = await PortalUser.findOne({
+    email: String(userBody.email).toLowerCase().trim(),
+  });
+  if (existingUser && existingUser.accountType !== "guest") {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Email already taken");
   }
 
   // Handle referral code
@@ -53,12 +55,66 @@ const createPortalUser = async (userBody: any) => {
   }
 
   // create security object
-  // const security = {
-  //   password: userBody.password,
-  // };
-  // userBody.security = security;
+  const security = {
+    password: userBody.password,
+  };
+  userBody.security = security;
+  userBody.accountType = "registered";
+
+  // Claim the guest record saved at checkout: same _id, so its orders come along
+  if (existingUser) {
+    const { password, referralCode, security, ...profile } = userBody;
+    existingUser.set(profile);
+    existingUser.set("security.password", password);
+    await existingUser.save();
+    return existingUser;
+  }
 
   return await PortalUser.create(userBody);
+};
+
+type GuestCustomerDetails = {
+  firstName: string;
+  lastName?: string | undefined;
+  gender?: "male" | "female" | undefined;
+  email: string;
+  phoneNumber: string;
+};
+
+/**
+ * Find or create the customer record for a checkout made without logging in.
+ * - New email: a guest record is created.
+ * - Existing guest: contact details are refreshed with the latest checkout.
+ * - Registered account: returned untouched (anonymous checkouts never edit a real profile).
+ */
+const upsertGuestCustomer = async (details: GuestCustomerDetails) => {
+  const email = details.email.toLowerCase().trim();
+  const contact = {
+    firstName: details.firstName,
+    phoneNumber: details.phoneNumber,
+    ...(details.lastName !== undefined && { lastName: details.lastName }),
+    ...(details.gender !== undefined && { gender: details.gender }),
+  };
+
+  let user = await PortalUser.findOne({ email });
+  if (!user) {
+    try {
+      return await PortalUser.create({ ...contact, email, accountType: "guest" });
+    } catch (error: any) {
+      // Two checkouts with the same new email raced; use the record that won
+      if (error?.code !== 11000) throw error;
+      user = await PortalUser.findOne({ email });
+      if (!user) throw error;
+    }
+  }
+
+  if (user.accountType === "guest") {
+    user.set(contact);
+    await user.save();
+  } else if (user.status !== "active") {
+    throw new ApiError(httpStatus.FORBIDDEN, "This account is not active");
+  }
+  return user;
 };
 
 const updatePortalUser = async (userId: any, updateBody: any) => {
@@ -104,7 +160,7 @@ const updatePortalUserPassword = async (
   if (!isCurrentPasswordCorrect)
     throw new ApiError(httpStatus.BAD_REQUEST, "Current password is incorrect");
 
-  // user.security!.password = newPassword;
+  user.security!.password = newPassword;
   await user.save();
   return user;
 };
@@ -120,16 +176,22 @@ const getGeneralPortalUsersStats = async () => {
   const pendingUsers = await PortalUser.countDocuments({
     status: "pending",
   });
+  const guestUsers = await PortalUser.countDocuments({
+    accountType: "guest",
+  });
   return {
     totalUsers,
     activeUsers,
     inactiveUsers,
     pendingUsers,
+    registeredUsers: totalUsers - guestUsers,
+    guestUsers,
   };
 };
 
 export default {
   createPortalUser,
+  upsertGuestCustomer,
   updatePortalUser,
   getPortalUser,
   getPortalUsers,

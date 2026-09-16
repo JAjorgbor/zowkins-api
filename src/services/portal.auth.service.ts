@@ -9,9 +9,15 @@ import emailService from "@/services/email.service.js";
 const loginWithCredentials = async (
   email: string,
   password: string,
-  refreshToken?: string,
+  refreshToken?: string
 ) => {
   const user = await portalUserService.getPortalUser({ email }, true);
+  if (user?.accountType === "guest") {
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      "No account exists for this email yet. Create an account to access your orders",
+    );
+  }
   if (!user || !(await (user as any).isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Incorrect email or password");
   }
@@ -46,7 +52,7 @@ const refreshAuth = async (refreshToken: string) => {
     const refreshTokenDoc = await tokenService.verifyToken(
       refreshToken,
       tokenTypes.REFRESH,
-      "Portal_User",
+      "Portal_User"
     );
     const user = await portalUserService.getPortalUser({
       _id: String(refreshTokenDoc.user),
@@ -64,7 +70,7 @@ const logout = async (refreshToken: string) => {
   const refreshTokenDoc = await tokenService.verifyToken(
     refreshToken,
     tokenTypes.REFRESH,
-    "Portal_User",
+    "Portal_User"
   );
   await refreshTokenDoc.deleteOne();
 };
@@ -74,7 +80,7 @@ const resetPassword = async (email: string) => {
   if (!user) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "The email provided does not exist!",
+      "The email provided does not exist!"
     );
   }
 
@@ -95,18 +101,20 @@ const setNewPassword = async (token: string, newPassword: string) => {
   const tokenDoc: any = await tokenService.verifyToken(
     token!,
     tokenTypes.RESET_PASSWORD,
-    "Portal_User",
+    "Portal_User"
   );
-  console.log(tokenDoc);
   const user = await portalUserService.getPortalUser({ _id: tokenDoc.user });
 
   if (!user) {
     throw new ApiError(httpStatus.BAD_REQUEST, "The user does not exist!");
   }
-  // if (!user.security) {
-  //   user.security = { authProvider: "credentials" };
-  // }
-  // user.security.password = newPassword;
+  if (!user.security) {
+    user.security = { authProvider: "credentials" };
+  }
+  user.security.password = newPassword;
+  // Following the emailed link proves ownership, so a guest becomes a full account here
+  user.accountType = "registered";
+  user.isEmailVerified = true;
 
   await user.save();
 

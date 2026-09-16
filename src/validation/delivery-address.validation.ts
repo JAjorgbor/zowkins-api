@@ -1,18 +1,21 @@
 import { z } from "zod";
 
+// Shared with checkout, where an address can be sent inline instead of by id
+export const deliveryAddressBody = z.object({
+  // label: z.string().min(1),
+  phoneNumber: z.string().min(9),
+  street: z.string().min(3),
+  city: z.string().min(2),
+  state: z.string().min(2),
+  country: z.string().default("Nigeria"),
+  postalCode: z.string().optional(),
+});
+
 const createDeliveryAddress = {
   params: z.object({
     userId: z.string(),
   }),
-  body: z.object({
-    // label: z.string().min(1),
-    phoneNumber: z.string().min(9),
-    street: z.string().min(3),
-    city: z.string().min(2),
-    state: z.string().min(2),
-    country: z.string().default("Nigeria"),
-    postalCode: z.string().optional(),
-  }),
+  body: deliveryAddressBody,
 };
 
 const updateDeliveryAddress = {

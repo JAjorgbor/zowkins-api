@@ -2,7 +2,10 @@ import express from "express";
 import validate from "@/middlewares/validate.js";
 import orderValidation from "@/validation/order.validation.js";
 import orderController from "@/controllers/portal.order.controller.js";
-import portalAuth from "@/middlewares/portal-auth.js";
+import portalAuth, {
+  optionalAuth as optionalPortalAuth,
+} from "@/middlewares/portal-auth.js";
+import { checkoutLimiter, quoteLimiter } from "@/middlewares/rate-limit.js";
 
 const router = express.Router();
 
@@ -13,9 +16,16 @@ router
     validate(orderValidation.getOrders),
     orderController.getPortalUserOrders,
   )
-  .post(validate(orderValidation.createOrder), orderController.createOrder);
+  .post(
+    checkoutLimiter,
+    optionalPortalAuth(),
+    validate(orderValidation.createOrder),
+    orderController.createOrder,
+  );
 
-router.route("/quote").post(orderController.requestOrderQuote);
+router
+  .route("/quote")
+  .post(quoteLimiter, optionalPortalAuth(), orderController.requestOrderQuote);
 
 router
   .route("/stats")

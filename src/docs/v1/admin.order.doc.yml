@@ -30,6 +30,9 @@ paths:
                     example: "683b2c7b4e7a9f1d3a5b8c2d"
 
                   - type: object
+                    description: |
+                      New customer details. Saved as a guest customer, or matched by email to an
+                      existing customer (whose profile is not changed).
                     required: [firstName, lastName, email, phoneNumber]
                     properties:
                       firstName:
@@ -61,21 +64,10 @@ paths:
                         type: integer
                         minimum: 1
                 deliveryAddress:
-                  type: object
-                  required: [phoneNumber, street, city, state]
-                  properties:
-                    phoneNumber:
-                      type: string
-                    street:
-                      type: string
-                    city:
-                      type: string
-                    state:
-                      type: string
-                    country:
-                      type: string
-                    postalCode:
-                      type: string
+                  oneOf:
+                    - type: string
+                      description: Id of an address saved on the customer (logged-in customers / existing customers only)
+                    - $ref: "#/components/schemas/DeliveryAddressInput"
                 deliveryMethod:
                   type: string
                   description: Delivery Method ID
@@ -117,6 +109,12 @@ paths:
           schema:
             type: string
           description: Customer ID
+        - in: query
+          name: isGuestOrder
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter orders placed without logging in ("false" includes orders created before guest checkout existed)
         - in: query
           name: referralPartner
           schema:
@@ -374,6 +372,21 @@ components:
               type: string
             phoneNumber:
               type: string
+        customerDetails:
+          type: object
+          description: Contact details as entered at checkout (snapshot, not updated by later profile edits)
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            phoneNumber:
+              type: string
+        isGuestOrder:
+          type: boolean
+          description: true when the order was placed without being logged in
         products:
           type: array
           items:

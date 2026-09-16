@@ -30,6 +30,9 @@ const envVarsSchema = z.object({
   // SMTP_PASSWORD: z.string(),
   //   GOOGLE_SERVICE_ACCOUNT: z.string(),
   PAYSTACK_SECRET_KEY: z.string(),
+  // Number of reverse proxies in front of the app, used to read the client IP from
+  // X-Forwarded-For (rate limiting depends on it). Defaults to 1 on Render, 0 elsewhere.
+  TRUST_PROXY: z.coerce.number().int().min(0).optional(),
 });
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
@@ -89,4 +92,6 @@ export default {
   paystack: {
     secretKey: envVars.data.PAYSTACK_SECRET_KEY,
   },
+  // Render sets RENDER=true in its runtime environment
+  trustProxy: envVars.data.TRUST_PROXY ?? (process.env.RENDER ? 1 : 0),
 };

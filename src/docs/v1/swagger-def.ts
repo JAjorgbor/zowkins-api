@@ -13,10 +13,6 @@ const excludedFiles = [
   path.resolve("src/docs/v1/portal.referral-partner.doc.yml"),
   path.resolve("src/docs/v1/admin.bank.doc.yml"),
   path.resolve("src/docs/v1/portal.bank.doc.yml"),
-  path.resolve("src/docs/v1/portal.bank.doc.yml"),
-  path.resolve("src/docs/v1/portal.auth.doc.yml"),
-  path.resolve("src/docs/v1/portal.user.doc.yml"),
-  path.resolve("src/docs/v1/portal.delivery-address.doc.yml"),
 ];
 
 const filteredApis = globSync("src/docs/v1/*.doc.yml")
@@ -57,9 +53,6 @@ const excludePaths = [
   "/admin/banks",
   "/portal/banks",
   "/admin/customers/non-referral-partners",
-  "/portal/orders/{orderId}",
-  "/portal/orders/recent",
-  "/portal/orders/stats",
 ];
 
 export const createSwaggerSpec = () => {

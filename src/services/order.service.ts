@@ -1,3 +1,4 @@
+import type { DeliveryAddressType } from "@/models/delivery-address.model.js";
 import Order from "@/models/order.model.js";
 import adminTeamService from "@/services/admin.team.service.js";
 import moment from "moment";
@@ -17,24 +18,91 @@ import { Types } from "mongoose";
 import roles from "@/config/roles.js";
 import paystack from "@/config/paystack.js";
 
+type CustomerDetails = {
+  firstName: string;
+  lastName?: string | undefined;
+  email: string;
+  phoneNumber: string;
+};
+
+/**
+ * Contact details to store on an order: what was typed at checkout when given,
+ * otherwise the customer's current profile.
+ */
+const resolveCustomerDetails = (
+  portalUser: {
+    firstName: string;
+    lastName?: string | null | undefined;
+    email: string;
+    phoneNumber: string;
+  },
+  customerDetails?: CustomerDetails,
+) => ({
+  firstName: customerDetails?.firstName ?? portalUser.firstName,
+  lastName: customerDetails
+    ? (customerDetails.lastName ?? null)
+    : (portalUser.lastName ?? null),
+  email: (customerDetails?.email ?? portalUser.email).toLowerCase().trim(),
+  phoneNumber: customerDetails?.phoneNumber ?? portalUser.phoneNumber,
+});
+
+/**
+ * Resolve an order's delivery address: an id must belong to the customer's
+ * address book; an object is used as given.
+ */
+const resolveDeliveryAddress = async (
+  customerId: string,
+  deliveryAddress: string | Partial<DeliveryAddressType>,
+) => {
+  if (typeof deliveryAddress !== "string") return deliveryAddress;
+  const address = await deliveryAddressService.getDeliveryAddressById(
+    customerId,
+    deliveryAddress,
+  );
+  if (!address)
+    throw new ApiError(httpStatus.NOT_FOUND, "Delivery Address not found");
+  return address;
+};
+
+/**
+ * Create an order for an existing customer record (registered or guest).
+ * Checkouts without a login resolve/create that record first via
+ * portalUserService.upsertGuestCustomer.
+ * @param deliveryAddress - id of an address saved on the customer, or a full address
+ * @param isGuestOrder - true when placed without logging in
+ * @param customerDetails - contact details as entered at checkout; defaults to the customer's profile
+ */
 const createOrder = async ({
   customer,
   items,
-  deliveryAddress,
+  deliveryAddress: deliveryAddressInput,
   deliveryMethod,
   callbackUrl,
   includePayment = false,
+  isGuestOrder = false,
+  customerDetails: customerDetailsInput,
 }: {
   customer: string;
   items: { productId: string; quantity: number }[];
-  deliveryAddress: any;
+  deliveryAddress: string | Partial<DeliveryAddressType>;
   deliveryMethod: string;
   callbackUrl?: string;
   includePayment?: boolean;
+  isGuestOrder?: boolean;
+  customerDetails?: CustomerDetails;
 }) => {
   const portalUser = await portalUserService.getPortalUser({ _id: customer });
   if (!portalUser)
     throw new ApiError(httpStatus.NOT_FOUND, "Portal User not found");
+
+  const customerDetails = resolveCustomerDetails(
+    portalUser,
+    customerDetailsInput,
+  );
+  const deliveryAddress = await resolveDeliveryAddress(
+    portalUser._id.toString(),
+    deliveryAddressInput,
+  );
 
   let referralPartner = undefined;
   if (portalUser.referredBy) {
@@ -42,14 +110,6 @@ const createOrder = async ({
       _id: portalUser.referredBy,
     });
   }
-
-  // const deliveryAddressDetails =
-  //   await deliveryAddressService.getDeliveryAddressById(
-  //     portalUser._id.toString(),
-  //     deliveryAddress,
-  //   );
-  // if (!deliveryAddressDetails)
-  //   throw new ApiError(httpStatus.NOT_FOUND, "Delivery Address not found");
 
   const deliveryMethodDetails = await deliveryMethodService.getDeliveryMethod({
     _id: deliveryMethod,
@@ -114,6 +174,8 @@ const createOrder = async ({
 
   const order = await Order.create({
     customer,
+    customerDetails,
+    isGuestOrder,
     products: normalizedItems,
     deliveryAddress,
     referralDetails,
@@ -126,7 +188,7 @@ const createOrder = async ({
   });
 
   await emailService.portalOrderConfirmation({
-    toEmail: portalUser.email,
+    toEmail: customerDetails.email,
     createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
     deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
     deliveryFee: deliveryMethodDetails.fee,
@@ -139,7 +201,7 @@ const createOrder = async ({
     })),
     deliveryMethod: deliveryMethodDetails.name,
     orderNumber: order.orderNumber,
-    firstName: portalUser.firstName,
+    firstName: customerDetails.firstName,
     paymentMade: includePayment,
   });
 
@@ -151,8 +213,8 @@ const createOrder = async ({
       toEmail: notifiedAdmins.map((admin) => admin.email as string),
       createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
       deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
-      customerPhone: portalUser.phoneNumber,
-      customerEmail: portalUser.email,
+      customerPhone: customerDetails.phoneNumber,
+      customerEmail: customerDetails.email,
       deliveryFee: deliveryMethodDetails.fee,
       subTotal,
       totalAmount,
@@ -163,7 +225,7 @@ const createOrder = async ({
       })),
       deliveryMethod: deliveryMethodDetails.name,
       orderNumber: order.orderNumber,
-      customerName: `${portalUser.firstName} ${portalUser.lastName}`,
+      customerName: `${customerDetails.firstName} ${customerDetails.lastName ?? ""}`.trim(),
       paymentMade: includePayment,
     });
   }
@@ -191,17 +253,38 @@ const requestOrderQuote = async (req: Request) => {
     },
   );
 
-  const { customer, items = [], deliveryAddress, note } = fields;
-  const portalUser = await portalUserService.createPortalUser(customer);
-  if (!portalUser?._id)
-    throw new ApiError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      "Failed to create or retrieve portal user",
-    );
+  const { customer, items = [], note } = fields;
+
+  // Logged in: the token decides who the customer is. Otherwise same rules as guest checkout.
+  const isGuestOrder = !req.portalUser;
+  if (isGuestOrder) {
+    if (!customer)
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "customer: first name, last name, email and phone number are required to request a quote without an account",
+      );
+    if (typeof fields.deliveryAddress === "string")
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "deliveryAddress: send the full address when requesting a quote without an account",
+      );
+  }
+  const portalUser =
+    req.portalUser ?? (await portalUserService.upsertGuestCustomer(customer));
+  const customerDetails = resolveCustomerDetails(
+    portalUser,
+    isGuestOrder ? customer : undefined,
+  );
+  const deliveryAddress = await resolveDeliveryAddress(
+    portalUser._id.toString(),
+    fields.deliveryAddress,
+  );
 
   const order = await Order.create({
     _id,
     customer: portalUser._id.toString(),
+    customerDetails,
+    isGuestOrder,
     quoteDetails: { items, note: note || "", file },
     deliveryAddress,
     transaction: {
@@ -210,7 +293,7 @@ const requestOrderQuote = async (req: Request) => {
   });
 
   await emailService.portalOrderQuote({
-    toEmail: portalUser.email,
+    toEmail: customerDetails.email,
     createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
     deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
     products: items.map((each: any) => ({
@@ -219,7 +302,7 @@ const requestOrderQuote = async (req: Request) => {
     })),
     note,
     orderNumber: order.orderNumber,
-    firstName: portalUser.firstName,
+    firstName: customerDetails.firstName,
     fileUrl: file?.url!,
   });
 
@@ -237,11 +320,22 @@ const requestOrderQuote = async (req: Request) => {
       })),
       note,
       orderNumber: order.orderNumber,
-      customerName: `${portalUser.firstName} ${portalUser.lastName}`,
-      customerPhone: portalUser.phoneNumber,
-      customerEmail: portalUser.email,
+      customerName: `${customerDetails.firstName} ${customerDetails.lastName ?? ""}`.trim(),
+      customerPhone: customerDetails.phoneNumber,
+      customerEmail: customerDetails.email,
       fileUrl: file?.url!,
     });
+  }
+
+  // Only guest records get the address saved; anonymous requests never edit a registered account
+  if (
+    portalUser.accountType === "guest" &&
+    typeof fields.deliveryAddress !== "string"
+  ) {
+    await deliveryAddressService.saveDeliveryAddressIfNew(
+      portalUser._id.toString(),
+      fields.deliveryAddress,
+    );
   }
   return order;
 };

@@ -24,6 +24,12 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: accountType
+          in: query
+          description: guest = saved from a checkout without an account; registered = has an account
+          schema:
+            type: string
+            enum: [guest, registered]
       responses:
         "200":
           description: OK
@@ -63,6 +69,10 @@ paths:
                       inactiveUsers:
                         type: integer
                       pendingUsers:
+                        type: integer
+                      registeredUsers:
+                        type: integer
+                      guestUsers:
                         type: integer
         "401":
           $ref: "#/components/responses/Unauthorized"
@@ -189,6 +199,9 @@ components:
         status:
           type: string
           enum: [pending, active, inactive, waitlist]
+        accountType:
+          type: string
+          enum: [guest, registered]
         isReferralPartner:
           type: boolean
         referredBy:

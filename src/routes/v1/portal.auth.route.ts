@@ -1,6 +1,11 @@
 import portalAuthController from "@/controllers/portal.auth.controller.js";
 import portalAuth from "@/middlewares/portal-auth.js";
 import validate from "@/middlewares/validate.js";
+import {
+  passwordResetLimiter,
+  portalLoginLimiter,
+  signupLimiter,
+} from "@/middlewares/rate-limit.js";
 import portalAuthValidation from "@/validation/portal.auth.validation.js";
 import express, { Router } from "express";
 
@@ -8,16 +13,19 @@ const router: Router = express.Router();
 
 router.post(
   "/create-account",
+  signupLimiter,
   validate(portalAuthValidation.createAccount),
   portalAuthController.createAccount
 );
 router.post(
   "/login",
+  portalLoginLimiter,
   validate(portalAuthValidation.login),
   portalAuthController.login
 );
 router.post(
   "/reset-password",
+  passwordResetLimiter,
   validate(portalAuthValidation.resetPassword),
   portalAuthController.resetPassword
 );

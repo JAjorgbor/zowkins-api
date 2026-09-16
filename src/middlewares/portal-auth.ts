@@ -75,4 +75,27 @@ const auth =
       .catch((err) => next(err));
   };
 
+/**
+ * For endpoints open to guests. Without an Authorization header the request
+ * continues with req.portalUser unset; with one, the token must be valid
+ * (a bad/expired token is rejected rather than silently treated as a guest).
+ */
+export const optionalAuth =
+  () => (req: Request, res: Response, next: NextFunction) => {
+    if (!req.headers.authorization) return next();
+    return auth()(req, res, next);
+  };
+
+/**
+ * Use after auth() on portal routes with a :userId param, so users can only
+ * act on their own records.
+ */
+export const requireSelf =
+  () => (req: Request, _res: Response, next: NextFunction) => {
+    if (req.params.userId !== req.portalUser?._id.toString()) {
+      return next(new ApiError(httpStatus.FORBIDDEN, "Forbidden"));
+    }
+    next();
+  };
+
 export default auth;

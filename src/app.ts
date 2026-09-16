@@ -15,6 +15,10 @@ import config from "@/config/config.js";
 
 const app: Application = express();
 
+// Behind a proxy (e.g. Render), req.ip comes from X-Forwarded-For only for the
+// configured number of hops, so clients can't spoof it. Check with GET /v1/test/ip.
+app.set("trust proxy", config.trustProxy);
+
 /**
  * 1️⃣ Disable caching for ALL API responses
  *    (critical on Netlify / serverless + CORS)
@@ -73,6 +77,8 @@ const corsOptions: cors.CorsOptions = {
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  // Lets the browser read rate-limit info (e.g. how long to wait after a 429)
+  exposedHeaders: ["RateLimit", "RateLimit-Policy", "Retry-After"],
   optionsSuccessStatus: 204,
 };
 

@@ -31,6 +31,7 @@ const validateRoute =
             return `${field}: ${issue.message}`;
           })
           .join(", ");
+        return next(new ApiError(httpStatus.BAD_REQUEST, errorMessage));
       }
       return next(error);
     }

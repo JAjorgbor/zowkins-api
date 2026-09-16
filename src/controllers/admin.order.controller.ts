@@ -8,11 +8,15 @@ import httpStatus from "http-status";
 
 const createOrder = catchAsync(async (req: Request, res: Response) => {
   const { customer } = req.body;
-  let user;
   let payload = req.body;
   if (typeof customer === "object") {
-    user = await portalUserService.createPortalUser(customer);
-    payload = { ...payload, customer: user!._id.toString() };
+    // New customer details: saved as a guest (or matched to an existing account by email)
+    const user = await portalUserService.upsertGuestCustomer(customer);
+    payload = {
+      ...payload,
+      customer: user._id.toString(),
+      customerDetails: customer,
+    };
   }
   const order = await orderService.createOrder(payload);
   res.status(httpStatus.CREATED).json({ success: true, order });
@@ -23,8 +27,14 @@ const getOrders = catchAsync(async (req: Request, res: Response) => {
     "orderStatus",
     "paymentStatus",
     "customer",
+    "isGuestOrder",
     "referralPartner",
   ]);
+  // Orders created before guest checkout have no isGuestOrder value stored
+  if (filter.isGuestOrder !== undefined) {
+    filter.isGuestOrder =
+      filter.isGuestOrder === "true" ? true : { $ne: true };
+  }
   const options = pick(req.query, ["sortBy", "limit", "page"]);
 
   const orders = await orderService.queryOrders(filter, options);

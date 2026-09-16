@@ -4,7 +4,7 @@ The backend is a robust Node.js/Express API designed for high-performance and cl
 
 ## 📁 Key Folders
 
-- `/src/routes`: API route definitions, organized by version (e.g., `v2`).
+- `/src/routes`: API route definitions, organized by version (currently `v1`).
 - `/src/controllers`: Request handlers that bridge routes and services.
 - `/src/services`: Business logic layer (database interactions, complex calculations).
 - `/src/models`: Database schema definitions (Mongoose models).

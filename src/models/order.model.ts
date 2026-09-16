@@ -17,6 +17,19 @@ const orderSchema = new mongoose.Schema(
       ref: "Portal_User",
       required: true,
     },
+    // Contact details as given at checkout. Kept on the order so later profile
+    // edits (or a guest re-checking out with new details) don't rewrite history.
+    customerDetails: {
+      firstName: { type: String, trim: true },
+      lastName: { type: String, trim: true },
+      email: { type: String, trim: true, lowercase: true, index: true },
+      phoneNumber: { type: String },
+    },
+    // true when the order was placed without being logged in
+    isGuestOrder: {
+      type: Boolean,
+      default: false,
+    },
     quoteDetails: {
       items: [
         {

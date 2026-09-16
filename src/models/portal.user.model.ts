@@ -39,31 +39,42 @@ const portalUserSchema = new mongoose.Schema(
     dateOfBirth: {
       type: Date,
     },
-    // security: {
-    //   password: {
-    //     select: false,
-    //     type: String,
-    //     trim: true,
-    //     minlength: 8,
-    //     validate(value: string) {
-    //       if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
-    //         throw new Error(
-    //           "Password must contain at least one letter and one number",
-    //         );
-    //       }
-    //     },
-    //     private: true,
-    //   },
-    //   authProvider: {
-    //     type: String,
-    //     required: true,
-    //     enum: ["credentials"],
-    //     default: "credentials",
-    //   },
-    // },
+    security: {
+      password: {
+        select: false,
+        type: String,
+        trim: true,
+        minlength: 8,
+        validate(value: string) {
+          if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
+            throw new Error(
+              "Password must contain at least one letter and one number",
+            );
+          }
+        },
+        private: true,
+      },
+      authProvider: {
+        type: String,
+        required: true,
+        enum: ["credentials"],
+        default: "credentials",
+      },
+    },
     isEmailVerified: {
       type: Boolean,
       default: false,
+    },
+    // "guest" = saved from a checkout without an account (no password, cannot log in).
+    // A guest is upgraded to "registered" in place when the same email creates an account,
+    // so every order already referencing this _id is carried over automatically.
+    // Documents created before this field existed have no value in the DB: query registered
+    // users with { accountType: { $ne: "guest" } }, never { accountType: "registered" }.
+    accountType: {
+      type: String,
+      enum: ["guest", "registered"],
+      default: "registered",
+      index: true,
     },
     isReferralPartner: { type: Boolean, default: false },
     status: {
@@ -89,7 +100,15 @@ const portalUserSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      // select:false only hides the hash on queries; documents returned from
+      // create()/save() still carry it, so strip it from every JSON response
+      transform: (_doc, ret: any) => {
+        if (ret.security) delete ret.security.password;
+        return ret;
+      },
+    },
     toObject: { virtuals: true },
   },
 );
@@ -131,21 +150,23 @@ portalUserSchema.statics.isEmailTaken = async function (email, excludeUserId) {
  * @param {string} password
  * @returns {Promise<boolean>}
  */
-// portalUserSchema.methods.isPasswordMatch = async function (password: string) {
-//   const user = this;
-//   return bcrypt.compare(password, user.security.password);
-// };
+portalUserSchema.methods.isPasswordMatch = async function (password: string) {
+  const user = this;
+  // Guest customers have no password; bcrypt throws on an undefined hash
+  if (!user.security?.password) return false;
+  return bcrypt.compare(password, user.security.password);
+};
 
-// portalUserSchema.pre("save", async function () {
-//   const user = this;
-//   if (user.isModified("security.password")) {
-//     if (user?.security?.password == undefined) {
-//       return;
-//     }
+portalUserSchema.pre("save", async function () {
+  const user = this;
+  if (user.isModified("security.password")) {
+    if (user?.security?.password == undefined) {
+      return;
+    }
 
-//     user.security.password = await bcrypt.hash(user.security.password, 8);
-//   }
-// });
+    user.security.password = await bcrypt.hash(user.security.password, 8);
+  }
+});
 
 export type PortalUserType = InferSchemaType<typeof portalUserSchema>;
 export type PortalUserDoc = HydratedDocument<PortalUserType>;

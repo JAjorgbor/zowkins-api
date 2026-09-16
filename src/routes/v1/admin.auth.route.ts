@@ -1,6 +1,10 @@
 import adminAuthController from "@/controllers/admin.auth.controller.js";
 import auth from "@/middlewares/admin-auth.js";
 import validate from "@/middlewares/validate.js";
+import {
+  adminLoginLimiter,
+  passwordResetLimiter,
+} from "@/middlewares/rate-limit.js";
 import adminAuthValidation from "@/validation/admin.auth.validation.js";
 import express, { Router } from "express";
 
@@ -13,6 +17,7 @@ router.post(
 );
 router.post(
   "/login",
+  adminLoginLimiter,
   validate(adminAuthValidation.loginWithCredentials),
   adminAuthController.loginWithCredentials
 );
@@ -20,6 +25,7 @@ router.post("/logout", auth(), adminAuthController.logout);
 router.post("/refresh-tokens", adminAuthController.refreshTokens);
 router.post(
   "/reset-password",
+  passwordResetLimiter,
   validate(adminAuthValidation.resetPassword),
   adminAuthController.resetPassword
 );
