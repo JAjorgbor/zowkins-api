@@ -116,7 +116,7 @@ const portalResetPassword = async ({
   await sendEmailWithRetry({
     toEmail,
     subject: "Reset Portal Password",
-    templateId: 67060,
+    templateId: 116132,
     variables: {
       firstName,
       ctaLink: `${config.websiteUrl}/portal/reset-password?token=${token}&firstName=${firstName}`,
