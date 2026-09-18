@@ -163,6 +163,22 @@ export const signupLimiter = createRateLimiter({
   message: "Too many accounts created from this network. Please try again later",
 });
 
+/** Code guesses; each code also allows only 5 attempts */
+export const verifyEmailLimiter = createRateLimiter({
+  name: "verify-email",
+  windowMs: 15 * MINUTE,
+  limit: 20,
+  message: "Too many verification attempts. Please try again later",
+});
+
+/** Each request sends an email */
+export const resendOtpLimiter = createRateLimiter({
+  name: "resend-otp",
+  windowMs: 60 * MINUTE,
+  limit: 10,
+  message: "Too many code requests. Please try again later",
+});
+
 /** Each request sends an email, so this is the strictest */
 export const passwordResetLimiter = createRateLimiter({
   name: "password-reset",

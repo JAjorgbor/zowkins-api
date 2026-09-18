@@ -163,6 +163,11 @@ portalUserSchema.pre("save", async function () {
     if (user?.security?.password == undefined) {
       return;
     }
+    // Set by completeSignup: the password was bcrypt-hashed when sign-up started
+    if (user.$locals.passwordIsHashed) {
+      delete user.$locals.passwordIsHashed;
+      return;
+    }
 
     user.security.password = await bcrypt.hash(user.security.password, 8);
   }

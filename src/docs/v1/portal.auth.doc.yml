@@ -11,11 +11,16 @@ paths:
     post:
       tags:
         - Portal Auth
-      summary: Create a new portal account
+      summary: "Sign-up step 1: send a verification code"
       description: |
-        If the email was used for a guest checkout, that guest record becomes this account
-        (same id), so all of its earlier orders and saved addresses appear right away.
+        Does **not** create the account or return tokens. It checks the details, emails a
+        6-digit code to the address, and returns a `verificationToken`. The account is created
+        by `POST /portal/auth/verify-email` with that token and the code.
+
+        If the email was used for a guest checkout, that guest record becomes this account once
+        verified (same id), so its earlier orders and saved addresses appear right away.
         Returns 400 "Email already taken" only when the email already has a registered account.
+        Limited to 5 sign-ups per email per hour (429).
       requestBody:
         required: true
         content:
@@ -23,30 +28,130 @@ paths:
             schema:
               $ref: "#/components/schemas/CreatePortalAccountInput"
       responses:
-        "201":
-          description: Created
+        "202":
+          description: Code sent. Show the code entry screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailVerificationChallenge"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: The verification email could not be sent. Nothing was saved; try again.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /portal/auth/verify-email:
+    post:
+      tags:
+        - Portal Auth
+      summary: "Confirm the emailed code (sign-up step 2, or login with an unverified email)"
+      description: |
+        Send the `verificationToken` from the sign-up (202) or login (403) response together
+        with the 6-digit code from the email. On success the email is verified and the
+        customer is logged in (same response as login, including the refresh cookie).
+
+        Each code allows 5 attempts and expires after `expiresInMinutes`. A token can be used
+        successfully only once. The code only works with the token it was sent for.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verificationToken, otp]
+              properties:
+                verificationToken:
+                  type: string
+                  pattern: "^[0-9a-f]{64}$"
+                otp:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+                  example: "048213"
+      responses:
+        "200":
+          description: Verified and logged in
           headers:
             Set-Cookie:
               description: Refresh token cookie
               schema:
                 type: string
-                example: portalRefreshToken=abc123...; HttpOnly; Secure; SameSite=Strict
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PortalAuthResponse"
         "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: |
+            Wrong code ("Incorrect code. N attempts left"), code expired, too many incorrect
+            attempts (request a new code), or the session expired / was already used
+            (sign up or log in again).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+
+  /portal/auth/resend-otp:
+    post:
+      tags:
+        - Portal Auth
+      summary: Email a new verification code
+      description: |
+        Sends a new code for the same verification session and invalidates the previous code.
+        Allowed once every 60 seconds, up to 4 times per session (429 otherwise; the message
+        says how long to wait).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verificationToken]
+              properties:
+                verificationToken:
+                  type: string
+                  pattern: "^[0-9a-f]{64}$"
+      responses:
+        "200":
+          description: New code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expiresInMinutes:
+                    type: integer
+                  resendAvailableInSeconds:
+                    type: integer
+                    example: 60
+                  resendsRemaining:
+                    type: integer
+        "400":
+          description: The session expired or was already used; sign up or log in again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: The email could not be sent; try again
 
   /portal/auth/login:
     post:
       tags:
         - Portal Auth
       summary: Login with portal credentials
+      description: |
+        If the password is correct but the email has not been verified, no tokens are issued:
+        the response is **403** with `requiresEmailVerification: true` and a
+        `verificationToken`, and a code is emailed. Continue with
+        `POST /portal/auth/verify-email`.
       requestBody:
         required: true
         content:
@@ -73,6 +178,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "403":
+          description: |
+            Email not verified (a code has been emailed), or the account is not active.
+            Check `requiresEmailVerification` to tell them apart.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - $ref: "#/components/schemas/EmailVerificationChallenge"
+              example:
+                code: 403
+                message: Please verify your email to continue. We've sent you a code
+                requiresEmailVerification: true
+                verificationToken: 3f9c0e8d7b6a5f4e3d2c1b0a99887766554433221100ffeeddccbbaa99887766
+                email: ada@example.com
+                expiresInMinutes: 10
+                resendAvailableInSeconds: 60
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -216,6 +339,7 @@ components:
           type: string
           format: password
           minLength: 8
+          description: At least 8 characters, with at least one letter and one number
         dateOfBirth:
           type: string
           format: date
@@ -242,6 +366,26 @@ components:
       example:
         email: john.doe@example.com
         password: password123
+
+    EmailVerificationChallenge:
+      type: object
+      properties:
+        requiresEmailVerification:
+          type: boolean
+          example: true
+        verificationToken:
+          type: string
+          description: Send this with the code to /verify-email, and to /resend-otp. Keep it in memory only.
+        email:
+          type: string
+          description: Where the code was sent
+        expiresInMinutes:
+          type: integer
+          description: How long the code is valid
+        resendAvailableInSeconds:
+          type: integer
+          description: Wait this long before offering "Resend code"
+          example: 60
 
     PortalAuthResponse:
       type: object

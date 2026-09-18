@@ -34,6 +34,16 @@ const verifyCallback =
         new ApiError(httpStatus.UNAUTHORIZED, "Your account is not active"),
       );
     }
+    // Tokens are only issued after verification; this catches sessions created before
+    // verification was required. Logging in again starts the verification.
+    if (!portalUser.isEmailVerified) {
+      return reject(
+        new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Please verify your email. Log in again to receive a verification code",
+        ),
+      );
+    }
 
     if ((requiredRights as any[])?.[0] == "referralPartner") {
       const hasRequiredRights = portalUser.isReferralPartner;

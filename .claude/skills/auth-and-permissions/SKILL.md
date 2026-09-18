@@ -51,6 +51,20 @@ To add a permission:
 2. Use it in the route: `auth("newPermission")`.
 3. Tell the admin frontend: the UI usually hides actions based on role.
 
+## Customer email verification (`src/services/email-verification.service.ts`)
+
+Portal tokens are only ever issued to customers whose `isEmailVerified` is true. The ways to become verified are `POST /portal/auth/verify-email` (code) and `set-new-password` (reset link). Rules that keep it from being bypassed; keep them when changing anything nearby:
+
+- **Two factors per verification:** the caller gets a random 32-byte `verificationToken` (sign-up 202 / login 403) and the 6-digit code goes to the inbox. `verify-email` needs both, so a code is useless without the session that requested it, and knowing an email is useless without the inbox.
+- **Only hashes stored** in `Email_Verification`: `sha256(token)`, `HMAC(JWT_SECRET, id:code)`, and the pending password as bcrypt. Codes come from `crypto.randomInt` and are compared with `timingSafeEqual`.
+- **Attempts are counted before comparing**, atomically (`findOneAndUpdate` with `attempts < 5`), so parallel guesses can't exceed 5 per code. Success consumes the session with `findOneAndDelete`, so a code works once even under parallel requests.
+- **Resend** is one atomic update guarded by cooldown (60 s) and cap (5 sends per session); it resets attempts and replaces the code. Sign-up is also capped at 5 sessions per email per hour, plus the per-IP limiters.
+- **Sign-up writes nothing to `Portal_User`** until verified (`portalUserService.completeSignup`). Its password skips the pre-save hash via `user.$locals.passwordIsHashed` because it was hashed at step 1. Don't set that flag anywhere else.
+- **Enforcement points**, all required: login returns 403 + challenge instead of tokens; `portal-auth` middleware rejects tokens of unverified users (401); `refreshAuth` refuses unverified users. Old sessions from before verification existed are cut off by the last two.
+- An admin changing a customer's email resets `isEmailVerified`.
+- `sendEmailWithRetry` must never log `variables` (they contain codes and reset links).
+- Tests: stub `emailService.portalVerifyEmailOtp` to capture `args.otp`; see `add-api-endpoint`.
+
 ## Rate limiting (`src/middlewares/rate-limit.ts`)
 
 Public endpoints that are costly or open to abuse get a limiter as the **first** middleware, before auth and validation, so rejected spam never reaches the DB or the email provider:
@@ -59,7 +73,7 @@ Public endpoints that are costly or open to abuse get a limiter as the **first**
 router.post("/", checkoutLimiter, optionalPortalAuth(), validate(...), controller)
 ```
 
-Current limiters: `checkoutLimiter`, `quoteLimiter`, `portalLoginLimiter` / `adminLoginLimiter` (count failures only), `signupLimiter`, `passwordResetLimiter` (shared by portal and admin). To add one, call `createRateLimiter({ name, windowMs, limit, message })` in that file. `name` must be unique because it prefixes the counters.
+Current limiters: `checkoutLimiter`, `quoteLimiter`, `portalLoginLimiter` / `adminLoginLimiter` (count failures only), `signupLimiter`, `verifyEmailLimiter`, `resendOtpLimiter`, `passwordResetLimiter` (shared by portal and admin). To add one, call `createRateLimiter({ name, windowMs, limit, message })` in that file. `name` must be unique because it prefixes the counters.
 
 How it works, and why:
 - **Counters live in MongoDB** (`Rate_Limit` model, TTL index on `resetAt`), so they survive restarts and are shared between instances. In-memory counters would reset and diverge. The store does one atomic pipeline `findOneAndUpdate` per hit, which was tested under 30 concurrent requests.

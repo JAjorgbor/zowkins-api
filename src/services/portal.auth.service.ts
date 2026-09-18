@@ -57,7 +57,8 @@ const refreshAuth = async (refreshToken: string) => {
     const user = await portalUserService.getPortalUser({
       _id: String(refreshTokenDoc.user),
     });
-    if (!user) {
+    // Sessions from before email verification existed can't be refreshed until verified
+    if (!user || !user.isEmailVerified) {
       throw new Error();
     }
     return tokenService.generateAuthTokens(user, "Portal_User", false);

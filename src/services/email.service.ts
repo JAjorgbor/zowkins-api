@@ -63,7 +63,12 @@ export const sendTemplateEmail = ({
 };
 
 async function sendEmailWithRetry(emailData: EmailData, retries = 3) {
-  console.log(emailData);
+  // Never log `variables`: they carry one-time codes and reset links
+  console.log("Sending email", {
+    to: emailData.toEmail,
+    subject: emailData.subject,
+    templateId: emailData.templateId,
+  });
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await sendTemplateEmail(emailData);
@@ -116,6 +121,26 @@ const portalResetPassword = async ({
       firstName,
       ctaLink: `${config.websiteUrl}/portal/reset-password?token=${token}&firstName=${firstName}`,
     },
+  });
+};
+
+const portalVerifyEmailOtp = async ({
+  toEmail,
+  firstName,
+  otp,
+  expirationInMinutes,
+}: {
+  toEmail: string;
+  firstName: string;
+  otp: string;
+  expirationInMinutes: number;
+}) => {
+  const templateId = 116025;
+  await sendEmailWithRetry({
+    toEmail,
+    subject: "Verify your email",
+    templateId,
+    variables: { firstName, otp, expirationInMinutes },
   });
 };
 
@@ -451,6 +476,7 @@ export default {
   sendEmailWithRetry,
   adminUserInvite,
   portalResetPassword,
+  portalVerifyEmailOtp,
   adminResetPassword,
   notifyAddedReferralPartner,
   portalOrderConfirmation,

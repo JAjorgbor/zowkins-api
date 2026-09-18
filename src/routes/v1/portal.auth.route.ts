@@ -4,7 +4,9 @@ import validate from "@/middlewares/validate.js";
 import {
   passwordResetLimiter,
   portalLoginLimiter,
+  resendOtpLimiter,
   signupLimiter,
+  verifyEmailLimiter,
 } from "@/middlewares/rate-limit.js";
 import portalAuthValidation from "@/validation/portal.auth.validation.js";
 import express, { Router } from "express";
@@ -16,6 +18,18 @@ router.post(
   signupLimiter,
   validate(portalAuthValidation.createAccount),
   portalAuthController.createAccount
+);
+router.post(
+  "/verify-email",
+  verifyEmailLimiter,
+  validate(portalAuthValidation.verifyEmail),
+  portalAuthController.verifyEmail
+);
+router.post(
+  "/resend-otp",
+  resendOtpLimiter,
+  validate(portalAuthValidation.resendOtp),
+  portalAuthController.resendOtp
 );
 router.post(
   "/login",

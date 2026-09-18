@@ -12,7 +12,7 @@ Customers are `Portal_User` documents (`src/models/portal.user.model.ts`). Each 
 | accountType | How it's created | Password | Can log in |
 | --- | --- | --- | --- |
 | `guest` | Order or quote without logging in (`POST /v1/portal/orders`, `POST /v1/portal/orders/quote` with no token), or an admin creating an order with a new customer's details | none | no |
-| `registered` | `POST /v1/portal/auth/create-account`, or a guest upgraded (below) | yes | yes |
+| `registered` | Sign-up (`create-account` then `verify-email`), or a guest upgraded (below) | yes | yes, once `isEmailVerified` |
 
 **A guest is never duplicated or merged. It is upgraded in place.** Orders reference `Portal_User._id` (`Order.customer`), so when a guest record becomes registered, every earlier order already belongs to the account. No re-linking query runs, and nothing can go out of sync.
 
@@ -23,15 +23,19 @@ checkout/quote (no token, new email) -> Portal_User { accountType: "guest" } + O
 checkout (no token, guest email)    -> same record, contact details refreshed, new order
 checkout (no token, registered email) -> order attached to that account; profile NOT modified,
                                        address NOT added to their address book
-create-account (guest email)        -> same record: profile + password set, accountType "registered"
+create-account (new/guest email)    -> nothing written to Portal_User; Email_Verification session + code emailed
+verify-email (that session + code)  -> guest email: same record upgraded; new email: account created;
+                                       accountType "registered", isEmailVerified = true, logged in
 set-new-password (guest email)      -> same record upgraded, isEmailVerified = true
 create-account (registered email)   -> 400 "Email already taken"
 login (guest email)                 -> 401 "No account exists for this email yet..."
+login (registered, unverified)      -> 403 requiresEmailVerification + new session, code emailed
 ```
 
 Where the logic lives:
 - `portalUserService.upsertGuestCustomer`: find-or-create by email. Handles the duplicate-key race when two checkouts use the same new email. **Use this for any "customer details without a login" input** (checkout, quote, admin order with a customer object).
-- `portalUserService.createPortalUser`: **account sign-up only**. It requires a password and claims a guest record if one exists. Don't use it as a find-or-create: an earlier version of the sandbox branch did, which silently returned existing registered users and skipped all of these rules.
+- `emailVerificationService` (`src/services/email-verification.service.ts`): sign-up and login verification with a one-time code. See `auth-and-permissions` for its security rules.
+- `portalUserService.completeSignup`: creates the account (or upgrades the guest record) **only after** the code is verified. It is called only by `emailVerificationService.verifyCode`. There is intentionally no "create account" function that skips verification. (Earlier versions had `createPortalUser`, which the sandbox branch once misused as a find-or-create.)
 - `portalAuthService.loginWithCredentials` / `setNewPassword`: guest handling.
 - `portal.order.controller.createOrder`: branches on `req.portalUser` (logged in) vs guest.
 - `orderService.requestOrderQuote`: the same branching for multipart quote requests (reads `req.portalUser` set by `optionalAuth`).
@@ -49,9 +53,9 @@ Where the logic lives:
 6. **Guests can't be referral partners** (they can't log in), so `getNonReferralPartners` excludes them. Any feature that needs a logged-in dashboard should exclude guests too.
 7. **Admin-created orders** (`POST /v1/admin/orders`) still require a `customer` id and are not guest orders.
 
-## Known limitation / follow-up
+## Why sign-up doesn't touch the guest record
 
-`create-account` claims a guest record without verifying the email. Anyone who knows a guest's email can register it and see that guest's order history (addresses, phone numbers). The password-reset path does verify ownership. If this becomes a concern, the fix is to require email verification before exposing orders placed before registration. `isEmailVerified` and the `VERIFY_EMAIL` token type already exist but have no flow yet.
+A guest's orders contain addresses and phone numbers, so a guest record may only become an account once the person proves they own the email. Sign-up therefore stores the pending profile (password already bcrypt-hashed) in an `Email_Verification` session and changes nothing else. Someone signing up with another person's email can't read or alter that person's orders or block their later sign-up; only the session whose code is confirmed takes effect, and it invalidates the other pending sign-ups for that email.
 
 ## Related
 

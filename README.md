@@ -25,7 +25,7 @@ All routes are prefixed with `/v1`.
 | Store settings | `/app` | public read, admin write | Store name, contacts, branding, portal status |
 | Catalogue | `/categories`, `/products` | public | Categories with subcategories, products by slug |
 | Delivery methods | `/delivery-methods` | public | Available delivery options and fees |
-| Customer auth | `/portal/auth` | public | Sign up, login, refresh token (httpOnly cookie), logout, password reset |
+| Customer auth | `/portal/auth` | public | Sign up and login with mandatory email verification (6-digit code), resend code, refresh token (httpOnly cookie), logout, password reset |
 | Customer profile | `/portal/users/me` | customer | View/update profile, change password |
 | Delivery addresses | `/portal/delivery-address/:userId` | customer (own only) | Saved address book |
 | Orders | `/portal/orders` | **guest or customer** | Checkout (optionally returns a Paystack payment link), order history, recent orders, stats |
@@ -40,13 +40,17 @@ All routes are prefixed with `/v1`.
 
 Order, quote, payment, cancellation and delivery emails go to customers and to staff with the `manageOrders` permission.
 
+### Email verification
+
+Customers must verify their email with a 6-digit code before they get an access token. Sign-up (`create-account`) creates nothing and returns a `verificationToken`; `verify-email` with that token and the emailed code creates the account and logs in. Logging in with an unverified email returns 403 with a new `verificationToken` and emails a code. Codes are stored hashed, allow 5 attempts, expire after `JWT_VERIFY_OTP_EXPIRATION_MINUTES`, and can be resent once a minute (up to 4 times). Implementation: `src/services/email-verification.service.ts`. Frontend flow: [Frontend Update Guide, section 1b](./docs/FRONTEND_UPDATE_GUIDE.md#1b-email-verification-one-time-code-mandatory).
+
 ### Customer accounts and guest orders
 
 Customers can order or request quotes without an account. Their details are saved as a **guest customer**, keyed by email. When that email later signs up (or completes a password reset), the guest record becomes the account, and every earlier order and quote shows up in it. Details: [`.claude/skills/customer-accounts`](./.claude/skills/customer-accounts/SKILL.md).
 
 ### Rate limiting
 
-Checkout, quote requests, login, sign-up and password reset are rate-limited per client IP and return `429` when a limit is exceeded. Counters are stored in MongoDB (`rate_limits` collection, expired automatically), so limits survive restarts and are shared between instances. Limits are defined in `src/middlewares/rate-limit.ts` and are disabled when `NODE_ENV=test`.
+Checkout, quote requests, login, sign-up, email verification (verify and resend) and password reset are rate-limited per client IP and return `429` when a limit is exceeded. Counters are stored in MongoDB (`rate_limits` collection, expired automatically), so limits survive restarts and are shared between instances. Limits are defined in `src/middlewares/rate-limit.ts` and are disabled when `NODE_ENV=test`.
 
 The client IP depends on the `TRUST_PROXY` setting (see below). After deploying, call `GET /v1/test/ip` from two different networks. They should show different addresses; if they show the same one, adjust `TRUST_PROXY`.
 
@@ -105,6 +109,8 @@ Create a `.env` file in the project root. The server refuses to start if a requi
 | `SMTP_CLIENT_ID`, `SMTP_CLIENT_SECRET` | yes | SendPulse API credentials |
 | `EMAIL_FROM_NAME`, `EMAIL_FROM_ADDRESS` | yes | sender identity |
 | `PAYSTACK_SECRET_KEY` | yes | Paystack secret key (payment links and webhook signature check) |
+| `EMAIL_VERIFY_OTP_TEMPLATE_ID` | **yes for sign-up/login to work** | SendPulse template id of the "verify your email" code email (variables `firstName`, `otp`, `expirationInMinutes`). The server starts without it, but sign-up and unverified logins return 503 until it is set |
+| `JWT_VERIFY_OTP_EXPIRATION_MINUTES` | no | how long each verification code is valid (default 10) |
 | `TRUST_PROXY` | no | number of reverse proxies in front of the API, used to read the client IP. Defaults to `1` on Render (detected from Render's `RENDER` variable) and `0` elsewhere |
 
 ### Errors
