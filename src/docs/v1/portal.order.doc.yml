@@ -236,7 +236,11 @@ paths:
           name: sortBy
           schema:
             type: string
-          description: sort by query in the form of field:desc/asc (ex. name:asc)
+            example: createdAt:desc
+          description: >-
+            Sort as field:asc / field:desc (or -field), several separated by commas
+            (ex. orderStatus:asc,createdAt:desc). Defaults to newest first
+            (createdAt:desc), which is also the tiebreaker for any other sort.
         - in: query
           name: limit
           schema:

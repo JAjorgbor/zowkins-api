@@ -1,6 +1,7 @@
 import DeliveryMethod from "@/models/delivery-method.model.js";
 import httpStatus from "http-status";
 import ApiError from "@/utils/api-error.js";
+import parseSortBy from "@/utils/parse-sort.js";
 
 /**
  * Create a delivery method
@@ -22,14 +23,19 @@ const createDeliveryMethod = async (
 /**
  * Query for delivery methods
  * @param {Object} filter - Mongo filter
- * @param {Object} options - Query options
+ * @param {Object} options - sortBy (field:asc/desc), limit, page
  * @returns {Promise<QueryResult>}
  */
 const queryDeliveryMethods = async (
   filter: Record<string, any>,
-  options: Record<string, any>
+  options: Record<string, any> = {}
 ) => {
-  const deliveryMethods = await DeliveryMethod.find(filter);
+  const limit = Number(options.limit) || 0;
+  const page = Number(options.page) || 1;
+  const deliveryMethods = await DeliveryMethod.find(filter)
+    .sort(parseSortBy(options.sortBy))
+    .skip(limit ? (page - 1) * limit : 0)
+    .limit(limit);
   return deliveryMethods;
 };
 

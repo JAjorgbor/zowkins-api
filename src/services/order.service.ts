@@ -9,6 +9,7 @@ import emailService from "@/services/email.service.js";
 import portalUserService from "@/services/portal.user.service.js";
 import referralPartnerService from "@/services/referral-partner.service.js";
 import ApiError from "@/utils/api-error.js";
+import parseSortBy from "@/utils/parse-sort.js";
 import { handleAssetUpload } from "@/utils/upload-asset.js";
 import customValidation from "@/validation/custom.validation.js";
 import orderValidation from "@/validation/order.validation.js";
@@ -365,14 +366,14 @@ const generatePaymentLink = async (orderId: string, callbackUrl: string) => {
   return initializePaymentResponse.authorization_url;
 };
 
-const getPortalUserOrders = async (portalUserId: string) => {
+const getPortalUserOrders = async (portalUserId: string, sortBy?: string) => {
   const portalUser = await portalUserService.getPortalUser({
     _id: portalUserId,
   });
   if (!portalUser)
     throw new ApiError(httpStatus.NOT_FOUND, "Portal User not found");
   const orders = await Order.find({ customer: portalUser._id.toString() })
-    .sort({ createdAt: -1 })
+    .sort(parseSortBy(sortBy))
     .populate("customer", "firstName lastName email phoneNumber")
     .populate({
       path: "referralDetails.referralPartner",
@@ -495,7 +496,7 @@ const queryOrders = async (
   }
 
   const orders = await Order.find(finalFilter)
-    .sort(options.sortBy || { createdAt: -1 })
+    .sort(parseSortBy(options.sortBy))
     .skip(options.page ? (options.page - 1) * options.limit : 0)
     .limit(options.limit || Number.MAX_SAFE_INTEGER)
     .populate("customer", "firstName lastName email phoneNumber")

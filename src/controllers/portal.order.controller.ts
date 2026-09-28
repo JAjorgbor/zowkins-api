@@ -89,7 +89,10 @@ const getOrder = catchAsync(async (req: Request, res: Response) => {
 
 const getPortalUserOrders = catchAsync(async (req: Request, res: Response) => {
   const user = req.portalUser as any;
-  const orders = await orderService.getPortalUserOrders(user._id.toString());
+  const orders = await orderService.getPortalUserOrders(
+    user._id.toString(),
+    req.query.sortBy as string | undefined,
+  );
   res.status(httpStatus.OK).json({ success: true, orders });
 });
 

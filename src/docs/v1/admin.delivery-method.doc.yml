@@ -88,6 +88,28 @@ paths:
           schema:
             type: string
           description: Filter by visibility status
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            example: name:asc
+          description: >-
+            Sort as field:asc / field:desc (or -field), several separated by commas
+            (ex. orderStatus:asc,createdAt:desc). Defaults to newest first
+            (createdAt:desc), which is also the tiebreaker for any other sort.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+          description: Maximum number of delivery methods (all of them when omitted)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number, used with limit
       responses:
         "200":
           description: OK
