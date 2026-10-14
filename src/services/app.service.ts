@@ -1,4 +1,7 @@
 import App from "@/models/app.model.js";
+import { handleAssetUpload } from "@/utils/upload-asset.js";
+import customValidation from "@/validation/custom.validation.js";
+import type { Request } from "express";
 
 const createApp = async (payload: any) => {
   const existingApp = await App.findOne();
@@ -26,8 +29,26 @@ const updateApp = async (payload: any) => {
   return app;
 };
 
+const uploadHeroImage = async (req: Request) => {
+  const app = await App.findOne();
+  if (!app) {
+    throw new Error("App not found");
+  }
+
+  const { files: images } = await handleAssetUpload(req, `app/hero-image.jpg`, {
+    file: customValidation.fileSchema,
+    maxFiles: 3,
+    requireFile: true,
+  });
+
+  app.set({ heroImages: images });
+  await app.save();
+  return app;
+};
+
 export default {
   createApp,
   getApp,
   updateApp,
+  uploadHeroImage,
 };

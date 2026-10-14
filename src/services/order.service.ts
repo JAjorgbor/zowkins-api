@@ -1,26 +1,109 @@
+import type { DeliveryAddressType } from "@/models/delivery-address.model.js";
 import Order from "@/models/order.model.js";
+import adminTeamService from "@/services/admin.team.service.js";
+import moment from "moment";
 import Product from "@/models/product.model.js";
 import deliveryAddressService from "@/services/delivery-address.service.js";
 import deliveryMethodService from "@/services/delivery-method.service.js";
+import emailService from "@/services/email.service.js";
 import portalUserService from "@/services/portal.user.service.js";
 import referralPartnerService from "@/services/referral-partner.service.js";
 import ApiError from "@/utils/api-error.js";
+import parseSortBy from "@/utils/parse-sort.js";
+import { handleAssetUpload } from "@/utils/upload-asset.js";
+import customValidation from "@/validation/custom.validation.js";
+import orderValidation from "@/validation/order.validation.js";
+import type { Request } from "express";
 import httpStatus from "http-status";
+import { Types } from "mongoose";
+import roles from "@/config/roles.js";
+import paystack from "@/config/paystack.js";
 
+type CustomerDetails = {
+  firstName: string;
+  lastName?: string | undefined;
+  email: string;
+  phoneNumber: string;
+};
+
+/**
+ * Contact details to store on an order: what was typed at checkout when given,
+ * otherwise the customer's current profile.
+ */
+const resolveCustomerDetails = (
+  portalUser: {
+    firstName: string;
+    lastName?: string | null | undefined;
+    email: string;
+    phoneNumber: string;
+  },
+  customerDetails?: CustomerDetails,
+) => ({
+  firstName: customerDetails?.firstName ?? portalUser.firstName,
+  lastName: customerDetails
+    ? (customerDetails.lastName ?? null)
+    : (portalUser.lastName ?? null),
+  email: (customerDetails?.email ?? portalUser.email).toLowerCase().trim(),
+  phoneNumber: customerDetails?.phoneNumber ?? portalUser.phoneNumber,
+});
+
+/**
+ * Resolve an order's delivery address: an id must belong to the customer's
+ * address book; an object is used as given.
+ */
+const resolveDeliveryAddress = async (
+  customerId: string,
+  deliveryAddress: string | Partial<DeliveryAddressType>,
+) => {
+  if (typeof deliveryAddress !== "string") return deliveryAddress;
+  const address = await deliveryAddressService.getDeliveryAddressById(
+    customerId,
+    deliveryAddress,
+  );
+  if (!address)
+    throw new ApiError(httpStatus.NOT_FOUND, "Delivery Address not found");
+  return address;
+};
+
+/**
+ * Create an order for an existing customer record (registered or guest).
+ * Checkouts without a login resolve/create that record first via
+ * portalUserService.upsertGuestCustomer.
+ * @param deliveryAddress - id of an address saved on the customer, or a full address
+ * @param isGuestOrder - true when placed without logging in
+ * @param customerDetails - contact details as entered at checkout; defaults to the customer's profile
+ */
 const createOrder = async ({
   customer,
   items,
-  deliveryAddress,
+  deliveryAddress: deliveryAddressInput,
   deliveryMethod,
+  callbackUrl,
+  includePayment = false,
+  isGuestOrder = false,
+  customerDetails: customerDetailsInput,
 }: {
   customer: string;
   items: { productId: string; quantity: number }[];
-  deliveryAddress: string;
+  deliveryAddress: string | Partial<DeliveryAddressType>;
   deliveryMethod: string;
+  callbackUrl?: string;
+  includePayment?: boolean;
+  isGuestOrder?: boolean;
+  customerDetails?: CustomerDetails;
 }) => {
   const portalUser = await portalUserService.getPortalUser({ _id: customer });
   if (!portalUser)
     throw new ApiError(httpStatus.NOT_FOUND, "Portal User not found");
+
+  const customerDetails = resolveCustomerDetails(
+    portalUser,
+    customerDetailsInput,
+  );
+  const deliveryAddress = await resolveDeliveryAddress(
+    portalUser._id.toString(),
+    deliveryAddressInput,
+  );
 
   let referralPartner = undefined;
   if (portalUser.referredBy) {
@@ -28,14 +111,6 @@ const createOrder = async ({
       _id: portalUser.referredBy,
     });
   }
-
-  const deliveryAddressDetails =
-    await deliveryAddressService.getDeliveryAddressById(
-      portalUser._id.toString(),
-      deliveryAddress,
-    );
-  if (!deliveryAddressDetails)
-    throw new ApiError(httpStatus.NOT_FOUND, "Delivery Address not found");
 
   const deliveryMethodDetails = await deliveryMethodService.getDeliveryMethod({
     _id: deliveryMethod,
@@ -46,8 +121,17 @@ const createOrder = async ({
     _id: { $in: items.map((item) => item.productId) },
   });
 
-  if (fetchedProducts.length !== items.length) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Some products not found");
+  for (const item of items) {
+    if (
+      !fetchedProducts.find(
+        (product) => product._id.toString() === item.productId,
+      )
+    ) {
+      throw new ApiError(
+        httpStatus.NOT_FOUND,
+        `Product not found: ${item.productId}`,
+      );
+    }
   }
   const subTotal = items.reduce(
     (total, item) =>
@@ -66,7 +150,7 @@ const createOrder = async ({
     );
     return {
       productId: thisProduct?._id,
-      productImage: thisProduct?.image,
+      productImage: thisProduct?.images[0],
       quantity: item.quantity,
       price: thisProduct?.price,
       amount: thisProduct!.price * item.quantity,
@@ -91,8 +175,10 @@ const createOrder = async ({
 
   const order = await Order.create({
     customer,
+    customerDetails,
+    isGuestOrder,
     products: normalizedItems,
-    deliveryAddress: deliveryAddressDetails,
+    deliveryAddress,
     referralDetails,
     transaction: {
       subTotal,
@@ -101,17 +187,193 @@ const createOrder = async ({
     },
     deliveryMethod: deliveryMethodDetails,
   });
+
+  await emailService.portalOrderConfirmation({
+    toEmail: customerDetails.email,
+    createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+    deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+    deliveryFee: deliveryMethodDetails.fee,
+    subTotal,
+    totalAmount,
+    products: normalizedItems.map((each) => ({
+      name: each.productName!,
+      amount: each.amount!,
+      quantity: each.quantity!,
+    })),
+    deliveryMethod: deliveryMethodDetails.name,
+    orderNumber: order.orderNumber,
+    firstName: customerDetails.firstName,
+    paymentMade: includePayment,
+  });
+
+  const notifiedAdmins = await adminTeamService.getAdminUsers({
+    role: roles.getAdminRolesWithPermission("manageOrders"),
+  });
+  if (notifiedAdmins.length) {
+    await emailService.adminOrderNotification({
+      toEmail: notifiedAdmins.map((admin) => admin.email as string),
+      createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+      deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+      customerPhone: customerDetails.phoneNumber,
+      customerEmail: customerDetails.email,
+      deliveryFee: deliveryMethodDetails.fee,
+      subTotal,
+      totalAmount,
+      products: normalizedItems.map((each) => ({
+        name: each.productName!,
+        amount: each.amount!,
+        quantity: each.quantity!,
+      })),
+      deliveryMethod: deliveryMethodDetails.name,
+      orderNumber: order.orderNumber,
+      customerName: `${customerDetails.firstName} ${customerDetails.lastName ?? ""}`.trim(),
+      paymentMade: includePayment,
+    });
+  }
+
+  let paymentLink;
+  if (includePayment) {
+    paymentLink = await generatePaymentLink(order._id.toString(), callbackUrl!);
+  }
+
+  return {
+    order,
+    paymentLink,
+  };
+};
+const requestOrderQuote = async (req: Request) => {
+  const _id = new Types.ObjectId();
+
+  const { file, fields } = await handleAssetUpload(
+    req,
+    `orders/quotes/${_id}`,
+    {
+      fields: orderValidation.requestOrderQuote,
+      file: customValidation.fileSchema,
+      requireFile: false,
+    },
+  );
+
+  const { customer, items = [], note } = fields;
+
+  // Logged in: the token decides who the customer is. Otherwise same rules as guest checkout.
+  const isGuestOrder = !req.portalUser;
+  if (isGuestOrder) {
+    if (!customer)
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "customer: first name, last name, email and phone number are required to request a quote without an account",
+      );
+    if (typeof fields.deliveryAddress === "string")
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "deliveryAddress: send the full address when requesting a quote without an account",
+      );
+  }
+  const portalUser =
+    req.portalUser ?? (await portalUserService.upsertGuestCustomer(customer));
+  const customerDetails = resolveCustomerDetails(
+    portalUser,
+    isGuestOrder ? customer : undefined,
+  );
+  const deliveryAddress = await resolveDeliveryAddress(
+    portalUser._id.toString(),
+    fields.deliveryAddress,
+  );
+
+  const order = await Order.create({
+    _id,
+    customer: portalUser._id.toString(),
+    customerDetails,
+    isGuestOrder,
+    quoteDetails: { items, note: note || "", file },
+    deliveryAddress,
+    transaction: {
+      totalAmount: 0,
+    },
+  });
+
+  await emailService.portalOrderQuote({
+    toEmail: customerDetails.email,
+    createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+    deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+    products: items.map((each: any) => ({
+      name: each.name,
+      quantity: each.quantity,
+    })),
+    note,
+    orderNumber: order.orderNumber,
+    firstName: customerDetails.firstName,
+    fileUrl: file?.url!,
+  });
+
+  const notifiedAdmins = await adminTeamService.getAdminUsers({
+    role: roles.getAdminRolesWithPermission("manageOrders"),
+  });
+  if (notifiedAdmins.length) {
+    await emailService.adminOrderQuoteRequest({
+      toEmail: notifiedAdmins.map((admin) => admin.email as string),
+      createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+      deliveryAddress: `${deliveryAddress?.street}, ${deliveryAddress?.city}, ${deliveryAddress?.state}`,
+      products: items.map((each: any) => ({
+        name: each.name,
+        quantity: each.quantity,
+      })),
+      note,
+      orderNumber: order.orderNumber,
+      customerName: `${customerDetails.firstName} ${customerDetails.lastName ?? ""}`.trim(),
+      customerPhone: customerDetails.phoneNumber,
+      customerEmail: customerDetails.email,
+      fileUrl: file?.url!,
+    });
+  }
+
+  // Only guest records get the address saved; anonymous requests never edit a registered account
+  if (
+    portalUser.accountType === "guest" &&
+    typeof fields.deliveryAddress !== "string"
+  ) {
+    await deliveryAddressService.saveDeliveryAddressIfNew(
+      portalUser._id.toString(),
+      fields.deliveryAddress,
+    );
+  }
   return order;
 };
 
-const getPortalUserOrders = async (portalUserId: string) => {
+const generatePaymentLink = async (orderId: string, callbackUrl: string) => {
+  const order = await getOrder(orderId);
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
+  if (!callbackUrl)
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "callbackUrl is required when generating paymentLink",
+    );
+  if (order.paymentStatus == "paid")
+    throw new ApiError(httpStatus.BAD_REQUEST, "Order is already paid");
+  const { transaction, customer } = order as any;
+  const initializePaymentResponse = await paystack.initializeTransaction({
+    amount: transaction?.totalAmount!,
+    email: customer?.email!,
+    callbackUrl: callbackUrl!,
+    metadata: {
+      orderId: order._id.toString(),
+      type: "order",
+    },
+  });
+  order.transaction!.ref = initializePaymentResponse.reference;
+  await order.save();
+  return initializePaymentResponse.authorization_url;
+};
+
+const getPortalUserOrders = async (portalUserId: string, sortBy?: string) => {
   const portalUser = await portalUserService.getPortalUser({
     _id: portalUserId,
   });
   if (!portalUser)
     throw new ApiError(httpStatus.NOT_FOUND, "Portal User not found");
   const orders = await Order.find({ customer: portalUser._id.toString() })
-    .sort({ createdAt: -1 })
+    .sort(parseSortBy(sortBy))
     .populate("customer", "firstName lastName email phoneNumber")
     .populate({
       path: "referralDetails.referralPartner",
@@ -234,7 +496,7 @@ const queryOrders = async (
   }
 
   const orders = await Order.find(finalFilter)
-    .sort(options.sortBy || { createdAt: -1 })
+    .sort(parseSortBy(options.sortBy))
     .skip(options.page ? (options.page - 1) * options.limit : 0)
     .limit(options.limit || Number.MAX_SAFE_INTEGER)
     .populate("customer", "firstName lastName email phoneNumber")
@@ -282,15 +544,75 @@ const updateOrder = async (
     order.referralDetails.commission!.note = updateBody.referralCommissionNote;
   }
 
-  // Remove commission fields from updateBody to avoid overwriting
   const {
     referralCommissionStatus,
     referralCommissionNote,
     ...restUpdateBody
   } = updateBody;
 
+  const previousOrderStatus = order.orderStatus;
+  const previousPaymentStatus = order.paymentStatus;
+
   Object.assign(order, restUpdateBody);
   await order.save();
+
+  const portalUser = await portalUserService.getPortalUser({
+    _id: order.customer as any,
+  });
+  if (portalUser) {
+    if (
+      updateBody.orderStatus &&
+      updateBody.orderStatus !== previousOrderStatus
+    ) {
+      if (updateBody.orderStatus === "cancelled") {
+        await emailService.portalOrderCancelled({
+          toEmail: portalUser.email,
+          firstName: portalUser.firstName,
+          orderNumber: order.orderNumber,
+        });
+      } else if (updateBody.orderStatus === "delivered") {
+        await emailService.portalOrderDelivered({
+          toEmail: portalUser.email,
+          firstName: portalUser.firstName,
+          orderNumber: order.orderNumber,
+          products: order.products.map((each: any) => ({
+            name: each.productName,
+            amount: each.amount,
+            quantity: each.quantity,
+          })),
+        });
+      }
+    }
+
+    if (
+      updateBody.paymentStatus &&
+      updateBody.paymentStatus !== previousPaymentStatus
+    ) {
+      if (updateBody.paymentStatus === "paid") {
+        await emailService.potalOrderPaymentConfirmed({
+          toEmail: portalUser.email,
+          firstName: portalUser.firstName,
+          orderNumber: order.orderNumber,
+          createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+          totalAmount: order.transaction!.totalAmount,
+        });
+
+        const notifiedAdmins = await adminTeamService.getAdminUsers({
+          role: roles.getAdminRolesWithPermission("manageOrders"),
+        });
+        if (notifiedAdmins.length) {
+          await emailService.adminOrderPaymentConfirmed({
+            toEmail: notifiedAdmins.map((admin) => admin.email as string),
+            customerName: portalUser.firstName + " " + portalUser.lastName,
+            orderNumber: order.orderNumber,
+            createdAt: moment(order.createdAt).format("MMMM DD, YYYY"),
+            totalAmount: order.transaction!.totalAmount,
+          });
+        }
+      }
+    }
+  }
+
   return order;
 };
 
@@ -329,8 +651,17 @@ const updateOrderProducts = async (
     _id: { $in: products.map((item) => item.productId) },
   });
 
-  if (fetchedProducts.length !== products.length) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Some products not found");
+  for (const item of products) {
+    if (
+      !fetchedProducts.find(
+        (product) => product._id.toString() === item.productId,
+      )
+    ) {
+      throw new ApiError(
+        httpStatus.NOT_FOUND,
+        `Product not found: ${item.productId}`,
+      );
+    }
   }
 
   // Calculate new total
@@ -351,7 +682,7 @@ const updateOrderProducts = async (
     );
     return {
       productId: thisProduct?._id,
-      productImage: thisProduct?.image,
+      productImage: thisProduct?.images[0],
       quantity: item.quantity,
       price: thisProduct?.price,
       amount: thisProduct!.price * item.quantity,
@@ -394,4 +725,6 @@ export default {
   updateOrderProducts,
   getPortalUserOrdersStats,
   getGeneralOrdersStats,
+  requestOrderQuote,
+  generatePaymentLink,
 };

@@ -11,7 +11,12 @@ const createAccount = {
       z.string(),
       "Phone number is required",
     ),
-    password: customValidation.required(z.string().min(8)),
+    // Same rules as the Portal_User model, checked up front because the account
+    // is only created after the email is verified
+    password: customValidation
+      .required(z.string().min(8, "Password must be at least 8 characters"))
+      .regex(/[a-zA-Z]/, "Password must contain at least one letter")
+      .regex(/\d/, "Password must contain at least one number"),
     dateOfBirth: z.string().optional(),
     referralCode: z.string().optional(),
   }),
@@ -39,8 +44,27 @@ const setNewPassword = {
   }),
 };
 
+const verificationToken = z
+  .string()
+  .regex(/^[0-9a-f]{64}$/, "Invalid verification token");
+
+const verifyEmail = {
+  body: z.object({
+    verificationToken,
+    otp: z.string().regex(/^\d{6}$/, "The code must be 6 digits"),
+  }),
+};
+
+const resendOtp = {
+  body: z.object({
+    verificationToken,
+  }),
+};
+
 export default {
   createAccount,
+  verifyEmail,
+  resendOtp,
   login,
   resetPassword,
   setNewPassword,

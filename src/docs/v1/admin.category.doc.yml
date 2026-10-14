@@ -20,12 +20,14 @@ paths:
             schema:
               type: object
               required:
-                - file
+                - files
                 - data
               properties:
-                file:
-                  type: string
-                  format: binary
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
                   description: Category image
                 data:
                   $ref: "#/components/schemas/CreateCategoryDto"
@@ -101,9 +103,11 @@ paths:
               required:
                 - data
               properties:
-                file:
-                  type: string
-                  format: binary
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
                   description: Updated category image
                 data:
                   $ref: "#/components/schemas/UpdateCategoryDto"

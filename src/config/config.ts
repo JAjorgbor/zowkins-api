@@ -5,6 +5,7 @@ import { z } from "zod";
 const envVarsSchema = z.object({
   NODE_ENV: z.enum(["production", "development", "test"]),
   PORT: z.coerce.number().default(5500),
+  BASE_URL: z.string(),
   WEBSITE_URL: z.string(),
   DATABASE_NAME: z.string(),
   DATABASE_URL: z.string(),
@@ -28,7 +29,10 @@ const envVarsSchema = z.object({
   // SMTP_USERNAME: z.string(),
   // SMTP_PASSWORD: z.string(),
   //   GOOGLE_SERVICE_ACCOUNT: z.string(),
-  // PAYSTACK_SECRET_KEY: z.string(),
+  PAYSTACK_SECRET_KEY: z.string(),
+  // Number of reverse proxies in front of the app, used to read the client IP from
+  // X-Forwarded-For (rate limiting depends on it). Defaults to 1 on Render, 0 elsewhere.
+  TRUST_PROXY: z.coerce.number().int().min(0).optional(),
 });
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
@@ -41,6 +45,7 @@ if (!envVars.success) {
 export default {
   env: envVars.data.NODE_ENV,
   port: envVars.data.PORT,
+  baseUrl: envVars.data.BASE_URL,
   websiteUrl: envVars.data.WEBSITE_URL,
   mongoose: {
     url:
@@ -84,7 +89,9 @@ export default {
       address: envVars.data.EMAIL_FROM_ADDRESS,
     },
   },
-  // paystack: {
-  //   secretKey: envVars.data.PAYSTACK_SECRET_KEY,
-  // },
+  paystack: {
+    secretKey: envVars.data.PAYSTACK_SECRET_KEY,
+  },
+  // Render sets RENDER=true in its runtime environment
+  trustProxy: envVars.data.TRUST_PROXY ?? (process.env.RENDER ? 1 : 0),
 };

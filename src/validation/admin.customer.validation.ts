@@ -5,6 +5,7 @@ const getCustomers = {
   query: z.object({
     status: z.enum(["pending", "active", "inactive", "waitlist"]).optional(),
     isReferralPartner: z.string().optional(), // boolean string
+    accountType: z.enum(["guest", "registered"]).optional(),
   }),
 };
 

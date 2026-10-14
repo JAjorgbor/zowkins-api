@@ -4,7 +4,12 @@ import portalUserService from "@/services/portal.user.service.js";
 import type { Request, Response } from "express";
 
 const getCustomers = catchAsync(async (req: Request, res: Response) => {
-  const users = await portalUserService.getPortalUsers(req.query);
+  const filter: Record<string, any> = { ...req.query };
+  // Customers created before guest checkout have no accountType stored
+  if (filter.accountType === "registered") {
+    filter.accountType = { $ne: "guest" };
+  }
+  const users = await portalUserService.getPortalUsers(filter);
   res.send({ customers: users });
 });
 
@@ -30,8 +35,10 @@ const deleteCustomer = catchAsync(async (req: Request, res: Response) => {
 
 const getNonReferralPartners = catchAsync(
   async (req: Request, res: Response) => {
+    // Guests can't log in, so they can't use a referral partner dashboard
     const users = await portalUserService.getPortalUsers({
       isReferralPartner: false,
+      accountType: { $ne: "guest" },
     });
     res.send({ customers: users });
   },

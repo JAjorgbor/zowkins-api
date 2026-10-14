@@ -15,6 +15,10 @@ import config from "@/config/config.js";
 
 const app: Application = express();
 
+// Behind a proxy (e.g. Render), req.ip comes from X-Forwarded-For only for the
+// configured number of hops, so clients can't spoof it. Check with GET /v1/test/ip.
+app.set("trust proxy", config.trustProxy);
+
 /**
  * 1️⃣ Disable caching for ALL API responses
  *    (critical on Netlify / serverless + CORS)
@@ -30,15 +34,22 @@ const explicitAllowedOrigins = new Set<string>([
   "http://localhost:3000",
   "http://localhost:3001",
   `http://localhost:${config.port}`,
+  "https://zowkins-api.onrender.com",
+  "https://zowkins.vercel.app",
 ]);
 
-/** Allow root + any subdomain that ends with .pharmahubmedica.ng */
+/** Allow root + any subdomain that ends with .zowkins.com */
 function isAllowedOrigin(origin: string) {
   try {
     const { hostname } = new URL(origin);
     return (
-      hostname === "pharmahubmedica.ng" ||
-      hostname.endsWith(".pharmahubmedica.ng")
+      hostname === "zowkins.com" ||
+      hostname === "www.zowkins.com" ||
+      hostname.endsWith(".zowkins.com") ||
+      hostname === "zowkins.ng" ||
+      hostname.endsWith(".zowkins.ng") ||
+      hostname === "zowkins-api.onrender.com" ||
+      hostname === "zowkins.vercel.app"
     );
   } catch {
     return false;
@@ -66,6 +77,8 @@ const corsOptions: cors.CorsOptions = {
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  // Lets the browser read rate-limit info (e.g. how long to wait after a 429)
+  exposedHeaders: ["RateLimit", "RateLimit-Policy", "Retry-After"],
   optionsSuccessStatus: 204,
 };
 
@@ -81,7 +94,13 @@ app.use(cors(corsOptions));
 
 /* Middleware (after CORS) */
 app.use(logger("dev"));
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf.toString("utf8");
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 

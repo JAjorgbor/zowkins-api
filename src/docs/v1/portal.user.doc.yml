@@ -21,6 +21,9 @@ components:
           format: date
         isEmailVerified:
           type: boolean
+        accountType:
+          type: string
+          enum: [guest, registered]
         isReferralPartner:
           type: boolean
         status:

@@ -15,7 +15,7 @@ router
   )
   .post(
     auth("manageOrders"),
-    validate(orderValidation.createOrder),
+    validate(orderValidation.adminCreateOrder),
     orderController.createOrder,
   );
 
@@ -43,5 +43,12 @@ router
     validate(orderValidation.updateOrderProducts),
     orderController.updateOrderProducts,
   );
+
+router.post(
+  "/:orderId/generate-payment-link",
+  auth("manageOrders"),
+  validate(orderValidation.generatePaymentLink),
+  orderController.generatePaymentLink,
+);
 
 export default router;

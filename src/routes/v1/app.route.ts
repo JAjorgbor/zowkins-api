@@ -25,5 +25,10 @@ router.patch(
   auth("updateApp"),
   appController.updateApp,
 );
+router.post(
+  "/upload-hero-image",
+  auth("updateApp"),
+  appController.uploadHeroImage,
+);
 
 export default router;

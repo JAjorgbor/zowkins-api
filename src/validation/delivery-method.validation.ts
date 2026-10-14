@@ -16,8 +16,9 @@ const getDeliveryMethods = {
     isActive: z.string().optional(), // boolean-ish string from query
     visibility: z.string().optional(),
     sortBy: z.string().optional(),
-    limit: z.number().int().optional(),
-    page: z.number().int().optional(),
+    // Query values arrive as strings, so coerce (plain z.number() rejected every request)
+    limit: z.coerce.number().int().optional(),
+    page: z.coerce.number().int().optional(),
   }),
 };
 

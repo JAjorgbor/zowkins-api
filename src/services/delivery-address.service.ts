@@ -23,6 +23,34 @@ const createDeliveryAddress = async (
 };
 
 /**
+ * Add an address to a user's address book unless an identical one is already saved
+ * (a returning guest checking out to the same place shouldn't pile up duplicates)
+ * @param {string} userId
+ * @param {Partial<DeliveryAddressType>} addressBody
+ * @returns {Promise<DeliveryAddressType>}
+ */
+const saveDeliveryAddressIfNew = async (
+  userId: string,
+  addressBody: Partial<DeliveryAddressType>,
+) => {
+  const user = await PortalUser.findById(userId);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+  const normalize = (value?: string | null) =>
+    (value || "").trim().toLowerCase();
+  const existing = await DeliveryAddress.find({
+    _id: { $in: user.deliveryAddresses },
+  });
+  const match = existing.find((address) =>
+    (["street", "city", "state", "phoneNumber"] as const).every(
+      (field) => normalize(address[field]) === normalize(addressBody[field]),
+    ),
+  );
+  return match ?? createDeliveryAddress(userId, addressBody);
+};
+
+/**
  * Get all delivery addresses for a user
  * @param {string} userId
  * @returns {Promise<DeliveryAddressType[]>}
@@ -99,6 +127,7 @@ const deleteDeliveryAddress = async (userId: string, addressId: string) => {
 
 export default {
   createDeliveryAddress,
+  saveDeliveryAddressIfNew,
   getDeliveryAddresses,
   getDeliveryAddressById,
   updateDeliveryAddress,

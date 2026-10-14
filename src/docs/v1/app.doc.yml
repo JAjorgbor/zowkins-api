@@ -116,6 +116,46 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /app/upload-hero-image:
+    post:
+      tags:
+        - App
+      summary: Upload application hero image
+      description: Uploads the application hero image. Uses multipart/form-data.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: App hero images files
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/App"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
 components:
   schemas:
     AppInput:
@@ -169,14 +209,14 @@ components:
             logomarkLight:
               type: string
       example:
-        name: PharmaHub Medica
-        address: 123 Health Way, Lagos, Nigeria
+        name: Zowkins
+        address: No. 1 Zowkins Street, Lagos, Nigeria
         phoneNumber: "+2348000000000"
         whatsAppNumber: "+2348000000000"
-        email: hello@pharmahubmedica.com
+        email: EMAIL_ADDRESS
         status:
           portal: online
-        description: Premium pharmaceutical delivery service.
+        description: Premium delivery service.
         ratings: 5
         images: ["https://example.com/image1.jpg"]
         branding:
@@ -246,6 +286,15 @@ components:
               type: string
             slug:
               type: string
+            heroImages:
+              type: array
+              items:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  key:
+                    type: string
             createdAt:
               type: string
               format: date-time

@@ -65,6 +65,17 @@ const portalUserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // "guest" = saved from a checkout without an account (no password, cannot log in).
+    // A guest is upgraded to "registered" in place when the same email creates an account,
+    // so every order already referencing this _id is carried over automatically.
+    // Documents created before this field existed have no value in the DB: query registered
+    // users with { accountType: { $ne: "guest" } }, never { accountType: "registered" }.
+    accountType: {
+      type: String,
+      enum: ["guest", "registered"],
+      default: "registered",
+      index: true,
+    },
     isReferralPartner: { type: Boolean, default: false },
     status: {
       type: String,
@@ -89,7 +100,15 @@ const portalUserSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      // select:false only hides the hash on queries; documents returned from
+      // create()/save() still carry it, so strip it from every JSON response
+      transform: (_doc, ret: any) => {
+        if (ret.security) delete ret.security.password;
+        return ret;
+      },
+    },
     toObject: { virtuals: true },
   },
 );
@@ -133,6 +152,8 @@ portalUserSchema.statics.isEmailTaken = async function (email, excludeUserId) {
  */
 portalUserSchema.methods.isPasswordMatch = async function (password: string) {
   const user = this;
+  // Guest customers have no password; bcrypt throws on an undefined hash
+  if (!user.security?.password) return false;
   return bcrypt.compare(password, user.security.password);
 };
 
@@ -140,6 +161,11 @@ portalUserSchema.pre("save", async function () {
   const user = this;
   if (user.isModified("security.password")) {
     if (user?.security?.password == undefined) {
+      return;
+    }
+    // Set by completeSignup: the password was bcrypt-hashed when sign-up started
+    if (user.$locals.passwordIsHashed) {
+      delete user.$locals.passwordIsHashed;
       return;
     }
 

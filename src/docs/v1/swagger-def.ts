@@ -8,11 +8,6 @@ import path from "path";
 
 const { version } = pkg;
 
-const apis = [
-  path.resolve("src/routes/**/*.ts"),
-  path.resolve("src/docs/v1/*.doc.yml"),
-];
-
 const excludedFiles = [
   path.resolve("src/docs/v1/admin.referral-partner.doc.yml"),
   path.resolve("src/docs/v1/portal.referral-partner.doc.yml"),
@@ -39,23 +34,42 @@ const options = {
     },
     servers: [
       {
+        url: `${config.baseUrl}/v1`,
+        description: "Sandbox server",
+      },
+      {
         url: `http://localhost:${config.port}/v1`,
         description: "Local server",
       },
-      // {
-      //   url: `https://api-sandbox.pharmahubmedica.ng/v2`,
-      //   description: "Sandbox server",
-      // },
     ],
   },
   apis: [...filteredApis],
 };
 
 // Routes to exclude from Swagger docs
-const excludePaths = ["/admin/referral-partners"];
+const excludePaths = [
+  "/admin/referral-partners",
+  "/portal/referral-partners",
+  "/admin/banks",
+  "/portal/banks",
+  "/admin/customers/non-referral-partners",
+];
 
 export const createSwaggerSpec = () => {
   const spec: any = swaggerJsdoc(options);
+
+  if (spec && spec.paths) {
+    for (const pathKey in spec.paths) {
+      const shouldExclude = excludePaths.some(
+        (excludePath) =>
+          pathKey === excludePath || pathKey.startsWith(`${excludePath}/`),
+      );
+
+      if (shouldExclude) {
+        delete spec.paths[pathKey];
+      }
+    }
+  }
 
   return spec;
 };

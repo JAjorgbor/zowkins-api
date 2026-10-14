@@ -23,8 +23,35 @@ paths:
               required: [customer, items, deliveryAddress, deliveryMethod]
               properties:
                 customer:
-                  type: string
-                  description: Customer ID
+                  oneOf:
+                  - type: string
+                    pattern: '^[0-9a-fA-F]{24}$'
+                    description: Existing customer ID
+                    example: "683b2c7b4e7a9f1d3a5b8c2d"
+
+                  - type: object
+                    description: |
+                      New customer details. Saved as a guest customer, or matched by email to an
+                      existing customer (whose profile is not changed).
+                    required: [firstName, lastName, email, phoneNumber]
+                    properties:
+                      firstName:
+                        type: string
+                      lastName:
+                        type: string
+                      gender:
+                        type: string
+                        enum: [male, female]
+                      email:
+                        type: string
+                      phoneNumber:
+                        type: string
+                    example:
+                      firstName: John
+                      lastName: Doe
+                      gender: male
+                      email: john.doe@example.com
+                      phoneNumber: "08012345678"
                 items:
                   type: array
                   items:
@@ -37,8 +64,10 @@ paths:
                         type: integer
                         minimum: 1
                 deliveryAddress:
-                  type: string
-                  description: Delivery Address ID
+                  oneOf:
+                    - type: string
+                      description: Id of an address saved on the customer (logged-in customers / existing customers only)
+                    - $ref: "#/components/schemas/DeliveryAddressInput"
                 deliveryMethod:
                   type: string
                   description: Delivery Method ID
@@ -81,6 +110,12 @@ paths:
             type: string
           description: Customer ID
         - in: query
+          name: isGuestOrder
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter orders placed without logging in ("false" includes orders created before guest checkout existed)
+        - in: query
           name: referralPartner
           schema:
             type: string
@@ -89,7 +124,11 @@ paths:
           name: sortBy
           schema:
             type: string
-          description: "sort by query in the form of field:desc/asc (ex. name:asc)"
+            example: createdAt:desc
+          description: >-
+            Sort as field:asc / field:desc (or -field), several separated by commas
+            (ex. orderStatus:asc,createdAt:desc). Defaults to newest first
+            (createdAt:desc), which is also the tiebreaker for any other sort.
         - in: query
           name: limit
           schema:
@@ -221,6 +260,46 @@ paths:
                   order:
                     $ref: "#/components/schemas/Order"
 
+  /admin/orders/{orderId}/generate-payment-link:
+    post:
+      summary: Generate payment link for an order
+      tags: [Admin Order]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                callbackUrl:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  paymentLink:
+                    type: string
+                    example: "https://example.com/payment/123456789"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /admin/orders/{orderId}/products:
     patch:
       summary: Update order products
@@ -297,6 +376,21 @@ components:
               type: string
             phoneNumber:
               type: string
+        customerDetails:
+          type: object
+          description: Contact details as entered at checkout (snapshot, not updated by later profile edits)
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            phoneNumber:
+              type: string
+        isGuestOrder:
+          type: boolean
+          description: true when the order was placed without being logged in
         products:
           type: array
           items:

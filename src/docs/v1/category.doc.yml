@@ -205,13 +205,20 @@ components:
           type: number
         description:
           type: string
-        image:
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              key:
+                type: string
+        specs:
           type: object
-          properties:
-            url:
-              type: string
-            key:
-              type: string
+          additionalProperties:
+            type: string
+          description: Flexible key-value pairs for product specifications. Frontend can define these as preferred.
         visible:
           type: boolean
         inStock:

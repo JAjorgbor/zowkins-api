@@ -34,6 +34,16 @@ const verifyCallback =
         new ApiError(httpStatus.UNAUTHORIZED, "Your account is not active"),
       );
     }
+    // Tokens are only issued after verification; this catches sessions created before
+    // verification was required. Logging in again starts the verification.
+    if (!portalUser.isEmailVerified) {
+      return reject(
+        new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Please verify your email. Log in again to receive a verification code",
+        ),
+      );
+    }
 
     if ((requiredRights as any[])?.[0] == "referralPartner") {
       const hasRequiredRights = portalUser.isReferralPartner;
@@ -73,6 +83,29 @@ const auth =
         next();
       })
       .catch((err) => next(err));
+  };
+
+/**
+ * For endpoints open to guests. Without an Authorization header the request
+ * continues with req.portalUser unset; with one, the token must be valid
+ * (a bad/expired token is rejected rather than silently treated as a guest).
+ */
+export const optionalAuth =
+  () => (req: Request, res: Response, next: NextFunction) => {
+    if (!req.headers.authorization) return next();
+    return auth()(req, res, next);
+  };
+
+/**
+ * Use after auth() on portal routes with a :userId param, so users can only
+ * act on their own records.
+ */
+export const requireSelf =
+  () => (req: Request, _res: Response, next: NextFunction) => {
+    if (req.params.userId !== req.portalUser?._id.toString()) {
+      return next(new ApiError(httpStatus.FORBIDDEN, "Forbidden"));
+    }
+    next();
   };
 
 export default auth;

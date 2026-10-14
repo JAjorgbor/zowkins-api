@@ -10,6 +10,10 @@ declare global {
     interface Request {
       adminUser?: HydratedDocument<AdminUserDoc> | null;
     }
+    interface Request {
+      // Real client IP when running behind Netlify (set in netlify/functions/api.ts)
+      clientIp?: string;
+    }
   }
 }
 

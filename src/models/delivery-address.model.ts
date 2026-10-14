@@ -4,9 +4,9 @@ import mongoose, {
 } from "mongoose";
 
 export const deliveryAddressSchema = new mongoose.Schema({
-  label: {
-    type: String,
-  },
+  // label: {
+  //   type: String,
+  // },
   phoneNumber: {
     type: String,
   },
@@ -33,7 +33,7 @@ export type DeliveryAddressDoc = HydratedDocument<DeliveryAddressType>;
 
 const DeliveryAddress = mongoose.model(
   "Delivery_Address",
-  deliveryAddressSchema
+  deliveryAddressSchema,
 );
 
 export default DeliveryAddress;

@@ -88,12 +88,12 @@ const createCategory = async (req: Request) => {
   try {
     const _id = new Types.ObjectId();
     let payload: CategoryDoc;
-    const { image, fields } = await handleAssetUpload(
+    const { file: image, fields } = await handleAssetUpload(
       req,
       `categories/${_id}.jpg`,
       {
         fields: adminCategoryValidation.createCategory,
-        file: customValidation.imageFileSchema,
+        file: customValidation.fileSchema,
         requireFile: true,
       },
     );
@@ -129,12 +129,12 @@ const createCategory = async (req: Request) => {
 
 const updateCategory = async (categoryId: string, req: Request) => {
   try {
-    const { image, fields } = await handleAssetUpload(
+    const { file: image, fields } = await handleAssetUpload(
       req,
       `categories/${categoryId}.jpg`,
       {
         fields: adminCategoryValidation.updateCategory,
-        file: customValidation.imageFileSchema,
+        file: customValidation.fileSchema,
         requireFile: true,
       },
     );

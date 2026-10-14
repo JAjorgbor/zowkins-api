@@ -12,6 +12,12 @@ const loginWithCredentials = async (
   refreshToken?: string
 ) => {
   const user = await portalUserService.getPortalUser({ email }, true);
+  if (user?.accountType === "guest") {
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      "No account exists for this email yet. Create an account to access your orders",
+    );
+  }
   if (!user || !(await (user as any).isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Incorrect email or password");
   }
@@ -51,7 +57,8 @@ const refreshAuth = async (refreshToken: string) => {
     const user = await portalUserService.getPortalUser({
       _id: String(refreshTokenDoc.user),
     });
-    if (!user) {
+    // Sessions from before email verification existed can't be refreshed until verified
+    if (!user || !user.isEmailVerified) {
       throw new Error();
     }
     return tokenService.generateAuthTokens(user, "Portal_User", false);
@@ -97,7 +104,6 @@ const setNewPassword = async (token: string, newPassword: string) => {
     tokenTypes.RESET_PASSWORD,
     "Portal_User"
   );
-  console.log(tokenDoc);
   const user = await portalUserService.getPortalUser({ _id: tokenDoc.user });
 
   if (!user) {
@@ -107,6 +113,9 @@ const setNewPassword = async (token: string, newPassword: string) => {
     user.security = { authProvider: "credentials" };
   }
   user.security.password = newPassword;
+  // Following the emailed link proves ownership, so a guest becomes a full account here
+  user.accountType = "registered";
+  user.isEmailVerified = true;
 
   await user.save();
 

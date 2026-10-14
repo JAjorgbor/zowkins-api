@@ -34,11 +34,11 @@ const updateAdminUserPassword = catchAsync(
 
 const updateAdminUser = catchAsync(async (req: Request, res: Response) => {
   const userId = req.adminUser._id.toString();
-  const { image, fields } = await handleAssetUpload(
+  const { file: image, fields } = await handleAssetUpload(
     req,
     `admin-users/${userId}.jpg`,
     {
-      file: customValidation.imageFileSchema,
+      file: customValidation.fileSchema,
       fields: adminUserValidation.updateAdminUser,
       requireFile: false,
     },

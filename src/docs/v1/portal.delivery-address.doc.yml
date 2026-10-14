@@ -6,9 +6,6 @@ components:
         id:
           type: string
           description: The address ID
-        label:
-          type: string
-          description: Label for the address (e.g. Home, Work)
         phoneNumber:
           type: string
         street:

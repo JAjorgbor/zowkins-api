@@ -112,8 +112,15 @@ export type AdminUserPermissions =
 export type UserPermissions =
   (typeof portalUserRoles)[keyof typeof portalUserRoles][number];
 
+function getAdminRolesWithPermission(permission: string) {
+  return Object.entries(adminUserRoles)
+    .filter(([_, permissions]) => permissions.includes(permission as any))
+    .map(([role]) => role);
+}
+
 export default {
   userRoles: portalUserRoles,
+  getAdminRolesWithPermission,
   adminUserRoles,
   roles,
   roleRights,

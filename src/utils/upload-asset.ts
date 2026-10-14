@@ -8,15 +8,33 @@ import type { ZodType } from "zod";
 import httpStatus from "http-status";
 import { validateService } from "@/middlewares/validate.js";
 
-type AssetUploadResult = {
-  image: { url: string; key: string };
+type UploadedFile = {
+  buffer: Buffer;
+  mimeType?: string;
+  filename?: string;
+  size: number;
+};
+
+type FileResult = {
+  url: string;
+  key: string;
+};
+
+export type AssetUploadResult = {
+  file: FileResult | null;
+  files: FileResult[];
   fields: any;
 };
 
 type UploadValidation = {
-  fields?: ZodType; // validates parsed fields
-  file?: ZodType; // validates file metadata
+  fields?: ZodType;
+  file?: ZodType;
   requireFile?: boolean;
+
+  /** NEW */
+  maxFiles?: number;
+  maxFileSize?: number; // bytes
+
   callback?: (fields: any) => Promise<void>;
 };
 
@@ -28,7 +46,7 @@ async function uploadToR2({
   key: string;
   buffer: Buffer;
   contentType?: string;
-}) {
+}): Promise<FileResult> {
   await r2.send(
     new PutObjectCommand({
       Bucket: config.r2.bucket!,
@@ -36,7 +54,7 @@ async function uploadToR2({
       Body: buffer,
       ContentType: contentType,
       ContentLength: buffer.length,
-    })
+    }),
   );
 
   return {
@@ -48,125 +66,196 @@ async function uploadToR2({
 export function handleAssetUpload(
   req: Request,
   key: string,
-  validation?: UploadValidation
+  validation?: UploadValidation,
+  extension?: string,
 ): Promise<AssetUploadResult> {
   return new Promise((resolve, reject) => {
     const busboy = Busboy({ headers: req.headers });
 
+    let isSettled = false;
+    const rejectPromise = (err: any) => {
+      if (!isSettled) {
+        isSettled = true;
+        reject(err);
+      }
+    };
+    const resolvePromise = (val: any) => {
+      if (!isSettled) {
+        isSettled = true;
+        resolve(val);
+      }
+    };
+
     const fields: Record<string, any> = {};
-    let fileSeen = false;
+    const files: UploadedFile[] = [];
+    let fileCount = 0;
 
-    let fileBuffer: Buffer[] = [];
-    let fileMime: string | undefined;
-    let fileSize = 0;
-    let fileName: string | undefined;
-
+    /** ---------------- FIELD PARSING ---------------- */
     busboy.on("field", (name, value) => {
+      if (isSettled) return;
+      console.log("dfafd");
       if (name === "data") {
+        console.log("data field");
+        console.log(value);
         try {
           Object.assign(fields, JSON.parse(value));
-        } catch (error: any) {
-          reject(new ApiError(httpStatus.BAD_REQUEST, error.message));
+        } catch (err: any) {
+          rejectPromise(
+            new ApiError(httpStatus.BAD_REQUEST, "Invalid JSON in data field"),
+          );
         }
       } else {
         fields[name] = value;
       }
     });
 
+    /** ---------------- FILE PARSING ---------------- */
     busboy.on("file", (name, file, info) => {
-      if (name === "data") {
-        let dataBuffer = "";
-        file.on("data", (chunk: Buffer) => {
-          dataBuffer += chunk.toString();
-        });
-        file.on("end", () => {
-          try {
-            if (dataBuffer) {
-              Object.assign(fields, JSON.parse(dataBuffer));
-            }
-          } catch (error: any) {
-            reject(
-              new ApiError(
-                httpStatus.BAD_REQUEST,
-                "Invalid JSON in data file part: " + error.message
-              )
-            );
-          }
-        });
-        return;
-      }
-
-      if (fileSeen) {
-        reject(
-          new ApiError(httpStatus.BAD_REQUEST, "Only one file upload allowed")
-        );
+      if (isSettled) {
         file.resume();
         return;
       }
 
-      fileSeen = true;
-      fileMime = info.mimeType;
-      fileName = info.filename;
+      if (name === "data") {
+        let dataBuffer = "";
+
+        file.on("data", (chunk: Buffer) => {
+          if (isSettled) {
+            file.resume();
+            return;
+          }
+          dataBuffer += chunk.toString();
+        });
+
+        file.on("end", () => {
+          if (isSettled) return;
+          try {
+            if (dataBuffer) {
+              Object.assign(fields, JSON.parse(dataBuffer));
+            }
+          } catch {
+            rejectPromise(
+              new ApiError(
+                httpStatus.BAD_REQUEST,
+                "Invalid JSON in data field",
+              ),
+            );
+          }
+        });
+
+        return;
+      }
+      if (name !== "files") {
+        file.resume();
+        return;
+      }
+
+      const maxFiles = validation?.maxFiles ?? 1;
+      const maxFileSize = validation?.maxFileSize ?? 10485760; // 10MB
+
+      fileCount++;
+      if (fileCount > maxFiles) {
+        file.resume();
+        rejectPromise(
+          new ApiError(
+            httpStatus.BAD_REQUEST,
+            `Max ${maxFiles} file(s) allowed`,
+          ),
+        );
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      let size = 0;
 
       file.on("data", (chunk: Buffer) => {
-        fileSize += chunk.length;
-        fileBuffer.push(chunk);
+        if (isSettled) {
+          file.resume();
+          return;
+        }
+        size += chunk.length;
+
+        /** ---------------- SIZE VALIDATION ---------------- */
+        if (size > maxFileSize) {
+          file.resume();
+          rejectPromise(
+            new ApiError(
+              httpStatus.BAD_REQUEST,
+              `File exceeds max size of ${maxFileSize / 1024 / 1024}MB`,
+            ),
+          );
+          return;
+        }
+
+        chunks.push(chunk);
       });
 
       file.on("end", () => {
-        // No additional action needed for the primary file
+        if (isSettled) return;
+        files.push({
+          buffer: Buffer.concat(chunks),
+          size,
+          mimeType: info.mimeType,
+          filename: info.filename,
+        });
       });
     });
 
-    busboy.on("error", reject);
+    busboy.on("error", rejectPromise);
 
     busboy.on("finish", async () => {
+      if (isSettled) return;
       try {
-        /** ---------- FIELD VALIDATION ---------- */
+        /** FIELD VALIDATION */
         if (validation?.fields) {
+          console.log(fields);
           validateService(validation.fields, fields);
           await validation?.callback?.(fields);
         }
 
-        /** ---------- FILE PRESENCE ---------- */
-        if (validation?.requireFile && !fileSeen) {
+        /** REQUIRE FILE */
+        if (validation?.requireFile && files.length === 0) {
           throw new ApiError(httpStatus.BAD_REQUEST, "File is required");
         }
 
-        if (!fileSeen) {
-          return resolve({
-            image: { url: "", key: "" },
+        /** EMPTY CASE */
+        if (files.length === 0) {
+          return resolvePromise({
+            file: null,
+            files: [],
             fields,
           });
         }
 
-        const buffer = Buffer.concat(fileBuffer);
-
-        /** ---------- FILE VALIDATION ---------- */
+        /** FILE SCHEMA VALIDATION */
         if (validation?.file) {
-          validateService(validation.file, {
-            mimeType: fileMime,
-            size: fileSize,
-            filename: fileName,
+          files.forEach((f) => {
+            validateService(validation.file!, {
+              mimeType: f.mimeType,
+              size: f.size,
+              filename: f.filename,
+            });
           });
-          // validation.file.parse({
-          //   mimeType: fileMime,
-          //   size: fileSize,
-          //   filename: fileName,
-          // });
         }
 
-        /** ---------- UPLOAD ---------- */
-        const image = await uploadToR2({
-          key,
-          buffer,
-          contentType: fileMime!,
-        });
+        /** UPLOAD */
+        const uploadedFiles = await Promise.all(
+          files.map((f, idx) =>
+            uploadToR2({
+              key: `${key}-${idx}${extension ?? ""}`,
+              buffer: f.buffer!,
+              contentType: f.mimeType!,
+            }),
+          ),
+        );
 
-        resolve({ image, fields });
+        resolvePromise({
+          file: uploadedFiles[0] ?? null,
+          files: uploadedFiles,
+          fields,
+        });
       } catch (err) {
-        console.log(err);
-        reject(err);
+        rejectPromise(err);
       }
     });
 
