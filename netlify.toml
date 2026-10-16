@@ -2,6 +2,14 @@
   command = "pnpm build"
   functions = "dist/netlify/functions"
 
+[build.environment]
+  # Netlify's secret scanner flags any env value it finds in the repo, including
+  # values that aren't secret. These five are a brand name, a database name, the
+  # environment name and two public URLs, which legitimately appear in the README,
+  # docs, config and source. Exempting them by key keeps scanning on for the real
+  # secrets: JWT_SECRET, DATABASE_URL, PAYSTACK_SECRET_KEY, R2_* and SMTP_*.
+  SECRETS_SCAN_OMIT_KEYS = "EMAIL_FROM_NAME,DATABASE_NAME,NODE_ENV,BASE_URL,WEBSITE_URL"
+
 [[redirects]]
   from = "/v1/*"
   to = "/.netlify/functions/api/:splat"
