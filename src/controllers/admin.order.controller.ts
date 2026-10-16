@@ -32,8 +32,7 @@ const getOrders = catchAsync(async (req: Request, res: Response) => {
   ]);
   // Orders created before guest checkout have no isGuestOrder value stored
   if (filter.isGuestOrder !== undefined) {
-    filter.isGuestOrder =
-      filter.isGuestOrder === "true" ? true : { $ne: true };
+    filter.isGuestOrder = filter.isGuestOrder === "true" ? true : { $ne: true };
   }
   const options = pick(req.query, ["sortBy", "limit", "page"]);
 

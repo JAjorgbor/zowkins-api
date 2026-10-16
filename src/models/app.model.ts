@@ -49,7 +49,7 @@ const appSchema = new mongoose.Schema(
 
     slug: {
       type: String,
-      slug: "pharmahubmedica-app",
+      slug: "zowkins-app",
     },
 
     description: {
